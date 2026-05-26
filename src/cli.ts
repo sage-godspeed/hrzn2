@@ -5,6 +5,7 @@ import { ensureProjectScaffold } from "./scaffold.ts";
 import { parseTestcaseMarkdown } from "./spec/parser.ts";
 import { GraphChangelog } from "./graph/changelog.ts";
 import { loadProvider } from "./llm/loadProvider.ts";
+import { resolvePolicy } from "./policy/policyEngine.ts";
 
 type Command = "init" | "run";
 
@@ -57,17 +58,19 @@ export async function main() {
 
   await ensureProjectScaffold(config);
   const llm = loadProvider(config);
+  const basePolicy = await resolvePolicy({ projectRoot: config.projectRoot });
 
   if (cmd === "init") {
     const graph = await GraphChangelog.openOrCreate(config.paths.graphChangelogPath);
     await graph.appendRun({
       runner: config.defaultRunner,
       summary: "Initialized graph changelog",
-      artifacts: {},
+      artifacts: { policySource: basePolicy.policy.source, agentsMd: basePolicy.workspaceRules.agentsMdPath ?? null },
       testcases: []
     });
     process.stdout.write(`Initialized. Config agentName=${agentName}\n`);
     process.stdout.write(`LLM provider: ${llm.name}\n`);
+    process.stdout.write(`Policy: ${basePolicy.policy.source} (allow: ${basePolicy.policy.allow.join(", ")})\n`);
     return;
   }
 
@@ -85,18 +88,20 @@ export async function main() {
   const abs = resolve(projectRoot, normalized);
   const md = await readFile(abs, "utf8");
   const spec = parseTestcaseMarkdown(md);
+  const resolved = await resolvePolicy({ projectRoot: config.projectRoot, spec });
 
   const graph = await GraphChangelog.openOrCreate(config.paths.graphChangelogPath);
   await graph.upsertTestcaseNode(spec);
   await graph.appendRun({
     runner: config.defaultRunner,
     summary: `Parsed testcase ${spec.id}`,
-    artifacts: {},
+    artifacts: { policySource: resolved.policy.source, agentsMd: resolved.workspaceRules.agentsMdPath ?? null },
     testcases: [spec.id]
   });
 
   process.stdout.write(`Parsed testcase: ${spec.id} (${spec.title})\n`);
   process.stdout.write(`LLM provider: ${llm.name}\n`);
+  process.stdout.write(`Policy: ${resolved.policy.source} (allow: ${resolved.policy.allow.join(", ")})\n`);
   process.stdout.write(`Next: implement runners + synthesizer; this scaffold currently parses + logs.\n`);
 }
 
