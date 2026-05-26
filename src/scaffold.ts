@@ -1,7 +1,7 @@
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { AgentConfig } from "./config.js";
-import { exampleTestcaseMarkdown } from "./spec/example.js";
+import type { AgentConfig } from "./config.ts";
+import { exampleTestcaseMarkdown } from "./spec/example.ts";
 
 async function exists(p: string) {
   try {

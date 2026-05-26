@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import type { RunnerKind } from "../config.js";
-import type { TestcaseSpec } from "../spec/types.js";
+import type { RunnerKind } from "../config.ts";
+import type { TestcaseSpec } from "../spec/types.ts";
 
 export interface Graph {
   schemaVersion: string;
@@ -21,10 +21,13 @@ function nowIso() {
 }
 
 export class GraphChangelog {
-  private constructor(
-    private readonly path: string,
-    private graph: Graph
-  ) {}
+  private readonly path: string;
+  private graph: Graph;
+
+  private constructor(path: string, graph: Graph) {
+    this.path = path;
+    this.graph = graph;
+  }
 
   static async openOrCreate(path: string): Promise<GraphChangelog> {
     const abs = resolve(path);

@@ -1,4 +1,4 @@
-import type { RunnerKind } from "../config.js";
+import type { RunnerKind } from "../config.ts";
 
 export type LocatorStrategy = "testid" | "role" | "label" | "text" | "css" | "xpath";
 

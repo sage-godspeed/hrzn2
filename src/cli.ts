@@ -1,9 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { loadAgentConfig } from "./config.js";
-import { ensureProjectScaffold } from "./scaffold.js";
-import { parseTestcaseMarkdown } from "./spec/parser.js";
-import { GraphChangelog } from "./graph/changelog.js";
+import { loadAgentConfig } from "./config.ts";
+import { ensureProjectScaffold } from "./scaffold.ts";
+import { parseTestcaseMarkdown } from "./spec/parser.ts";
+import { GraphChangelog } from "./graph/changelog.ts";
 
 type Command = "init" | "run";
 
@@ -74,7 +74,12 @@ export async function main() {
     process.exit(2);
   }
 
-  const abs = resolve(projectRoot, testcasePath);
+  const normalized =
+    testcasePath.endsWith(".md") || testcasePath.includes("/") || testcasePath.includes("\\")
+      ? testcasePath
+      : resolve(config.paths.testcasesDir, `${testcasePath}.md`);
+
+  const abs = resolve(projectRoot, normalized);
   const md = await readFile(abs, "utf8");
   const spec = parseTestcaseMarkdown(md);
 

@@ -1,5 +1,4 @@
-import yaml from "js-yaml";
-import type { TestcaseSpec } from "./types.js";
+import type { TestcaseSpec } from "./types.ts";
 
 function requiredHeading(md: string, heading: string): string {
   const re = new RegExp(`^##\\s+${heading}\\s*$`, "m");
@@ -47,24 +46,116 @@ function parseRunner(block: string): { preferredRunner: "playwright" | "cypress"
   return { preferredRunner, suite };
 }
 
-function parseLooseYamlList(block: string): unknown[] {
-  const cleaned = block
-    .split("\n")
-    .map((l) => l.replace(/^\s*-\s?/, "- "))
-    .join("\n");
-  const doc = yaml.load(cleaned);
-  if (!Array.isArray(doc)) return [];
-  return doc as unknown[];
+function parseInlineValue(raw: string): unknown {
+  const v = raw.trim();
+  if (!v) return "";
+  if (v === "true") return true;
+  if (v === "false") return false;
+  if (v === "null") return null;
+  if (/^-?\d+(\.\d+)?$/.test(v)) return Number(v);
+  if ((v.startsWith("{") && v.endsWith("}")) || (v.startsWith("[") && v.endsWith("]"))) {
+    try {
+      return JSON.parse(v);
+    } catch {
+      return v;
+    }
+  }
+  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+    return v.slice(1, -1);
+  }
+  return v;
 }
 
-function parseLooseYamlMap(block: string): Record<string, unknown> {
-  const cleaned = block
-    .split("\n")
-    .map((l) => (l.trim().startsWith("-") ? l.replace(/^\s*-\s?/, "") : l))
-    .join("\n");
-  const doc = yaml.load(cleaned);
-  if (doc && typeof doc === "object" && !Array.isArray(doc)) return doc as Record<string, unknown>;
-  return {};
+function parseDashKVMap(block: string): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const line of block.split("\n")) {
+    const m = line.match(/^\s*-\s*([^:]+):\s*(.*)\s*$/);
+    if (!m) continue;
+    const k = m[1]!.trim();
+    const raw = m[2]!.trim();
+    if (!k) continue;
+    out[k] = parseInlineValue(raw);
+  }
+  return out;
+}
+
+function parseNumberedOps(block: string): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [];
+  for (const line of block.split("\n")) {
+    const m = line.match(/^\s*\d+\.\s*([a-zA-Z_][a-zA-Z0-9_]*):\s*(.*)\s*$/);
+    if (!m) continue;
+    const op = m[1]!.trim();
+    const raw = m[2]!.trim();
+    out.push({ [op]: parseInlineValue(raw) });
+  }
+  return out;
+}
+
+function parseDashOps(block: string): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [];
+  for (const line of block.split("\n")) {
+    const m = line.match(/^\s*-\s*([a-zA-Z_][a-zA-Z0-9_]*):\s*(.*)\s*$/);
+    if (!m) continue;
+    const op = m[1]!.trim();
+    const raw = m[2]!.trim();
+    out.push({ [op]: parseInlineValue(raw) });
+  }
+  return out;
+}
+
+function parseLocators(block: string): TestcaseSpec["locators"] | undefined {
+  if (!block.trim()) return undefined;
+  const strategyOrderMatch = block.match(/^\s*-\s*strategy_order:\s*(\[.*\])\s*$/m);
+  const strategyOrder = strategyOrderMatch ? (parseInlineValue(strategyOrderMatch[1]!) as any) : undefined;
+
+  const map: Record<string, Record<string, unknown>> = {};
+  const mapStart = block.search(/^\s*-\s*map:\s*$/m);
+  if (mapStart !== -1) {
+    const after = block.slice(mapStart).split("\n").slice(1);
+    for (const line of after) {
+      const m = line.match(/^\s{2,}([A-Za-z0-9._-]+):\s*(\{.*\})\s*$/);
+      if (!m) continue;
+      const key = m[1]!.trim();
+      const obj = parseInlineValue(m[2]!.trim());
+      if (obj && typeof obj === "object" && !Array.isArray(obj)) map[key] = obj as Record<string, unknown>;
+    }
+  }
+
+  return {
+    strategyOrder: Array.isArray(strategyOrder) ? (strategyOrder as any) : undefined,
+    map: Object.keys(map).length ? map : undefined
+  };
+}
+
+function parseHealingPolicy(block: string): TestcaseSpec["healingPolicy"] | undefined {
+  if (!block.trim()) return undefined;
+  const allow: string[] = [];
+  const deny: string[] = [];
+
+  let section: "allow" | "deny" | "other" = "other";
+  for (const line of block.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("- allow:")) {
+      section = "allow";
+      continue;
+    }
+    if (trimmed.startsWith("- deny:")) {
+      section = "deny";
+      continue;
+    }
+    const item = trimmed.match(/^\-\s*([A-Za-z0-9._-]+)\s*$/)?.[1];
+    if (item && section === "allow") allow.push(item);
+    if (item && section === "deny") deny.push(item);
+  }
+
+  const reqMatch = block.match(/require_approval_for:\s*(\[.*\])/);
+  const req = reqMatch ? parseInlineValue(reqMatch[1]!) : undefined;
+
+  return {
+    allow: allow.length ? allow : undefined,
+    deny: deny.length ? deny : undefined,
+    specUpdatesRequireApprovalFor: Array.isArray(req) ? (req as string[]) : undefined
+  };
 }
 
 export function parseTestcaseMarkdown(md: string): TestcaseSpec {
@@ -79,22 +170,22 @@ export function parseTestcaseMarkdown(md: string): TestcaseSpec {
   const runner = parseRunner(runnerBlock);
 
   const preconditionsBlock = requiredHeading(md, "Preconditions");
-  const preconditions = parseLooseYamlMap(preconditionsBlock);
+  const preconditions = parseDashKVMap(preconditionsBlock);
 
   const dataBlock = requiredHeading(md, "Data");
-  const data = parseLooseYamlMap(dataBlock);
+  const data = parseDashKVMap(dataBlock);
 
   const stepsBlock = requiredHeading(md, "Steps");
-  const steps = parseLooseYamlList(stepsBlock);
+  const steps = parseNumberedOps(stepsBlock);
 
   const assertionsBlock = requiredHeading(md, "Assertions");
-  const assertions = parseLooseYamlList(assertionsBlock);
+  const assertions = parseDashOps(assertionsBlock);
 
   const locatorsBlock = requiredHeading(md, "Locators (Optional)");
   const healingPolicyBlock = requiredHeading(md, "Healing Policy");
 
-  const locators = locatorsBlock ? parseLooseYamlMap(locatorsBlock) : undefined;
-  const healingPolicy = healingPolicyBlock ? parseLooseYamlMap(healingPolicyBlock) : undefined;
+  const locators = locatorsBlock ? parseLocators(locatorsBlock) : undefined;
+  const healingPolicy = healingPolicyBlock ? parseHealingPolicy(healingPolicyBlock) : undefined;
 
   return {
     id,
@@ -104,10 +195,10 @@ export function parseTestcaseMarkdown(md: string): TestcaseSpec {
     suite: runner.suite,
     preconditions,
     data,
-    steps: steps as Array<Record<string, unknown>>,
-    assertions: assertions as Array<Record<string, unknown>>,
-    locators: locators as any,
-    healingPolicy: healingPolicy as any
+    steps,
+    assertions,
+    locators,
+    healingPolicy
   };
 }
 
