@@ -1,0 +1,25 @@
+{
+  "name": "agent-e2e-autofix",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Provider-agnostic E2E test authoring + self-healing agent (Playwright/Cypress).",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts",
+    "start": "node dist/cli.js",
+    "prepare": "npm run -s build",
+    "lint": "eslint .",
+    "format": "prettier -w ."
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0"
+  }
+}

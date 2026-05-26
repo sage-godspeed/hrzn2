@@ -1,0 +1,10 @@
+{
+  "agentName": "e2e-agent",
+  "defaultRunner": "playwright",
+  "paths": {
+    "testcasesDir": "testcases",
+    "e2eDir": "e2e",
+    "artifactsDir": "e2e/artifacts",
+    "graphChangelogPath": "e2e/changelog/e2e-graph.json"
+  }
+}
