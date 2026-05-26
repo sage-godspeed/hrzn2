@@ -4,6 +4,14 @@
   "version": "0.0.0",
   "description": "Provider-agnostic E2E test authoring + self-healing agent (Playwright/Cypress).",
   "type": "module",
+  "bin": {
+    "e2e-agent": "dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "agent.config.json",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/cli.ts",

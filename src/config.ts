@@ -6,6 +6,8 @@ export type RunnerKind = "playwright" | "cypress";
 export interface AgentConfig {
   agentName: string;
   defaultRunner: RunnerKind;
+  projectRoot: string;
+  configPath: string;
   paths: {
     testcasesDir: string;
     e2eDir: string;
@@ -14,8 +16,8 @@ export interface AgentConfig {
   };
 }
 
-export async function loadAgentConfig(): Promise<AgentConfig> {
-  const p = resolve("agent.config.json");
+export async function loadAgentConfig(input: { projectRoot: string; configPath: string }): Promise<AgentConfig> {
+  const p = resolve(input.configPath);
   const raw = await readFile(p, "utf8");
   const parsed = JSON.parse(raw) as Partial<AgentConfig>;
   if (!parsed.agentName) throw new Error("agent.config.json missing agentName");
@@ -28,14 +30,17 @@ export async function loadAgentConfig(): Promise<AgentConfig> {
   if (!parsed.paths?.e2eDir) throw new Error("agent.config.json missing paths.e2eDir");
   if (!parsed.paths?.artifactsDir) throw new Error("agent.config.json missing paths.artifactsDir");
 
+  const projectRoot = resolve(input.projectRoot);
   return {
     agentName: parsed.agentName,
     defaultRunner,
+    projectRoot,
+    configPath: p,
     paths: {
-      testcasesDir: parsed.paths.testcasesDir,
-      e2eDir: parsed.paths.e2eDir,
-      artifactsDir: parsed.paths.artifactsDir,
-      graphChangelogPath: parsed.paths.graphChangelogPath
+      testcasesDir: resolve(projectRoot, parsed.paths.testcasesDir),
+      e2eDir: resolve(projectRoot, parsed.paths.e2eDir),
+      artifactsDir: resolve(projectRoot, parsed.paths.artifactsDir),
+      graphChangelogPath: resolve(projectRoot, parsed.paths.graphChangelogPath)
     }
   };
 }
