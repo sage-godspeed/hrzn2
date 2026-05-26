@@ -4,6 +4,7 @@ import { loadAgentConfig } from "./config.ts";
 import { ensureProjectScaffold } from "./scaffold.ts";
 import { parseTestcaseMarkdown } from "./spec/parser.ts";
 import { GraphChangelog } from "./graph/changelog.ts";
+import { loadProvider } from "./llm/loadProvider.ts";
 
 type Command = "init" | "run";
 
@@ -55,6 +56,7 @@ export async function main() {
   }
 
   await ensureProjectScaffold(config);
+  const llm = loadProvider(config);
 
   if (cmd === "init") {
     const graph = await GraphChangelog.openOrCreate(config.paths.graphChangelogPath);
@@ -65,6 +67,7 @@ export async function main() {
       testcases: []
     });
     process.stdout.write(`Initialized. Config agentName=${agentName}\n`);
+    process.stdout.write(`LLM provider: ${llm.name}\n`);
     return;
   }
 
@@ -93,6 +96,7 @@ export async function main() {
   });
 
   process.stdout.write(`Parsed testcase: ${spec.id} (${spec.title})\n`);
+  process.stdout.write(`LLM provider: ${llm.name}\n`);
   process.stdout.write(`Next: implement runners + synthesizer; this scaffold currently parses + logs.\n`);
 }
 

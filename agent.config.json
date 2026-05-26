@@ -1,6 +1,11 @@
 {
   "agentName": "hrzn2",
   "defaultRunner": "playwright",
+  "llm": {
+    "provider": "gpt",
+    "model": "",
+    "apiKeyEnv": ""
+  },
   "paths": {
     "testcasesDir": "testcases",
     "e2eDir": "e2e",
