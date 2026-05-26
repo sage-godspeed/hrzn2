@@ -1,5 +1,5 @@
 {
-  "agentName": "e2e-agent",
+  "agentName": "hrzn2",
   "defaultRunner": "playwright",
   "paths": {
     "testcasesDir": "testcases",

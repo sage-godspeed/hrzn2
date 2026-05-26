@@ -1,4 +1,4 @@
-# Provider-agnostic E2E agent (Cypress + Playwright)
+# hrzn2 (Provider-agnostic E2E agent)
 
 This folder contains a TypeScript agent that:
 - parses `testcases/*.md`
@@ -10,6 +10,30 @@ This folder contains a TypeScript agent that:
 ## Configure agent name
 Edit `agent.config.json` → `agentName`.
 
-## Dev
-1. Install deps: `npm i` (or `pnpm i` / `yarn`)
-2. Run: `npm run dev -- run testcases/AUTH-LOGIN-001.md`
+## Requirements
+- Node.js v22+ (uses `--experimental-strip-types` to run TypeScript without a build step).
+
+## Run (this project)
+- Initialize scaffold: `node bin/hrzn2.js init`
+- Run against a testcase: `node bin/hrzn2.js run AUTH-LOGIN-001`
+
+## Run against another project (reuse)
+From *this* repo (short + memorable):
+- `node bin/hrzn2.js init --projectRoot /path/to/project`
+- `node bin/hrzn2.js run AUTH-LOGIN-001 --projectRoot /path/to/project`
+
+If the other project keeps its config elsewhere:
+- `node bin/hrzn2.js run AUTH-LOGIN-001 --projectRoot /path/to/project --config /path/to/project/agent.config.json`
+
+## CLI
+- `hrzn2 init [--projectRoot <dir>] [--config <path>]`
+- `hrzn2 run <testcase.md|TEST_ID> [--projectRoot <dir>] [--config <path>]`
+
+### Install as a CLI in other projects (no publishing)
+From this folder:
+- Global install from a local path: `npm i -g .`
+- Then you can run: `hrzn2 ...`
+
+Alternative (dev linking):
+- `npm link` (in this folder)
+- `npm link agent-e2e-autofix` (in the target project)
