@@ -16,6 +16,7 @@ Use this file to keep shared context for work in this repo. Keep entries short a
 - Allowed template without TEST_ID and added default template fallback.
 - Template now resets to the built-in example if required sections are missing.
 - Template uses the auto-numbered filename for TestCase and Title.
+- Auto-numbered template suffixes are zero-padded to two digits.
 
 ## Pending work
 
