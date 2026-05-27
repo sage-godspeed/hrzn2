@@ -6,13 +6,22 @@ import type { TestcaseSpec } from "../spec/types.ts";
 export interface Graph {
   schemaVersion: string;
   nodes: Array<{ id: string; type: string; props: Record<string, unknown> }>;
-  edges: Array<{ from: string; to: string; type: string; props?: Record<string, unknown> }>;
+  edges: Array<{
+    from: string;
+    to: string;
+    type: string;
+    props?: Record<string, unknown>;
+  }>;
   events: Array<{
     id: string;
     runNodeId: string;
     summary: string;
     artifacts: Record<string, unknown>;
-    changes: Array<{ changeNodeId: string; detail?: Record<string, unknown> }>;
+    changes: Array<{
+      changeNodeId: string;
+      detail?: Record<string, unknown>;
+      artifacts?: Record<string, unknown>;
+    }>;
   }>;
 }
 
@@ -37,7 +46,12 @@ export class GraphChangelog {
       const parsed = JSON.parse(raw) as Graph;
       return new GraphChangelog(abs, parsed);
     } catch {
-      const initial: Graph = { schemaVersion: "1.0", nodes: [], edges: [], events: [] };
+      const initial: Graph = {
+        schemaVersion: "1.0",
+        nodes: [],
+        edges: [],
+        events: [],
+      };
       await writeFile(abs, JSON.stringify(initial, null, 2) + "\n", "utf8");
       return new GraphChangelog(abs, initial);
     }
@@ -46,20 +60,40 @@ export class GraphChangelog {
   async upsertTestcaseNode(spec: TestcaseSpec) {
     const id = `tc:${spec.id}`;
     const existing = this.graph.nodes.find((n) => n.id === id);
-    const props = { title: spec.title, tags: spec.tags, preferredRunner: spec.preferredRunner, suite: spec.suite ?? null };
+    const props = {
+      title: spec.title,
+      tags: spec.tags,
+      preferredRunner: spec.preferredRunner,
+      suite: spec.suite ?? null,
+    };
     if (existing) existing.props = props;
     else this.graph.nodes.push({ id, type: "TestCase", props });
     await this.flush();
   }
 
-  async appendRun(input: { runner: RunnerKind; summary: string; artifacts: Record<string, unknown>; testcases: string[] }) {
+  async appendRun(input: {
+    runner: RunnerKind;
+    summary: string;
+    artifacts: Record<string, unknown>;
+    testcases: string[];
+  }) {
     const runId = `run:${nowIso()}`;
-    this.graph.nodes.push({ id: runId, type: "Run", props: { runner: input.runner } });
+    this.graph.nodes.push({
+      id: runId,
+      type: "Run",
+      props: { runner: input.runner },
+    });
     for (const tc of input.testcases) {
       this.graph.edges.push({ from: runId, to: `tc:${tc}`, type: "RAN" });
     }
     const eventId = `evt:${runId}`;
-    this.graph.events.push({ id: eventId, runNodeId: runId, summary: input.summary, artifacts: input.artifacts, changes: [] });
+    this.graph.events.push({
+      id: eventId,
+      runNodeId: runId,
+      summary: input.summary,
+      artifacts: input.artifacts,
+      changes: [],
+    });
     await this.flush();
     return runId;
   }
@@ -70,6 +104,7 @@ export class GraphChangelog {
     confidence?: number;
     summary?: string;
     modifiedFiles?: string[];
+    artifacts?: Record<string, unknown>;
     detail?: Record<string, unknown>;
   }) {
     const changeId = `chg:${input.runNodeId}:${this.graph.nodes.length}`;
@@ -80,18 +115,41 @@ export class GraphChangelog {
         kind: input.kind,
         confidence: input.confidence ?? null,
         summary: input.summary ?? null,
-        modifiedFiles: input.modifiedFiles ?? []
-      }
+        modifiedFiles: input.modifiedFiles ?? [],
+        artifacts: input.artifacts ?? {},
+      },
     });
-    this.graph.edges.push({ from: input.runNodeId, to: changeId, type: "PRODUCED" });
+    this.graph.edges.push({
+      from: input.runNodeId,
+      to: changeId,
+      type: "PRODUCED",
+    });
 
     const evt = this.graph.events.find((e) => e.runNodeId === input.runNodeId);
-    if (evt) evt.changes.push({ changeNodeId: changeId, detail: input.detail });
+    if (evt)
+      evt.changes.push({
+        changeNodeId: changeId,
+        detail: input.detail,
+        artifacts: input.artifacts,
+      });
     await this.flush();
     return changeId;
   }
 
+  async markActiveTest(testcaseId: string, changeNodeId: string) {
+    const tcId = `tc:${testcaseId}`;
+    this.graph.edges = this.graph.edges.filter(
+      (e) => !(e.from === tcId && e.type === "ACTIVE"),
+    );
+    this.graph.edges.push({ from: tcId, to: changeNodeId, type: "ACTIVE" });
+    await this.flush();
+  }
+
   private async flush() {
-    await writeFile(this.path, JSON.stringify(this.graph, null, 2) + "\n", "utf8");
+    await writeFile(
+      this.path,
+      JSON.stringify(this.graph, null, 2) + "\n",
+      "utf8",
+    );
   }
 }

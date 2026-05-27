@@ -5,6 +5,9 @@ export interface RunReport {
   timestamp: string;
   command: string;
   testcaseId?: string;
+  testcases?: string[];
+  results?: Array<Record<string, unknown>>;
+  suite?: string;
   runner?: string;
   status: "pass" | "fail";
   iterations?: number;
@@ -12,6 +15,14 @@ export interface RunReport {
   llmProvider?: string;
   artifacts?: Record<string, unknown>;
   notes?: string[];
+  ci?: boolean;
+  dryRun?: boolean;
+  patchFile?: string;
+  git?: {
+    branch?: string;
+    commit?: string;
+    remote?: string;
+  };
 }
 
 export async function writeRunReport(path: string, report: RunReport) {
@@ -20,4 +31,3 @@ export async function writeRunReport(path: string, report: RunReport) {
   await writeFile(abs, JSON.stringify(report, null, 2) + "\n", "utf8");
   return abs;
 }
-
