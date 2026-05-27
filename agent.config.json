@@ -1,5 +1,5 @@
 {
-  "agentName": "hrzn2",
+  "agentName": "hrzn",
   "defaultRunner": "playwright",
   "llm": {
     "provider": "gpt",

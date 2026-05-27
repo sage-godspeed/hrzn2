@@ -1,11 +1,11 @@
 {
-  "name": "agent-e2e-autofix",
+  "name": "hrzn",
   "private": true,
   "version": "0.0.0",
   "description": "Provider-agnostic E2E test authoring + self-healing agent (Playwright/Cypress).",
   "type": "module",
   "bin": {
-    "hrzn2": "bin/hrzn2.js"
+    "hrzn": "bin/hrzn2.js"
   },
   "files": [
     "bin",
