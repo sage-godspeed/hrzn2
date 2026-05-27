@@ -8,7 +8,8 @@ const PROVIDER_ENV_DEFAULTS: Record<LLMProviderId, string> = {
   deepseek: "DEEPSEEK_API_KEY",
   qwen: "QWEN_API_KEY",
   kimi: "KIMI_API_KEY",
-  llama: "LLAMA_API_KEY"
+  llama: "LLAMA_API_KEY",
+  none: ""
 };
 
 export function createPlaceholderProvider(input: { provider: LLMProviderId; model: string; apiKeyEnv: string }): LLMProvider {

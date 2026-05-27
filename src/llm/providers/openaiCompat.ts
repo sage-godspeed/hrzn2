@@ -21,6 +21,8 @@ function defaultApiKeyEnv(provider: LLMProviderId): string {
       return "ANTHROPIC_API_KEY";
     case "gemini":
       return "GEMINI_API_KEY";
+    case "none":
+      return "";
   }
 }
 

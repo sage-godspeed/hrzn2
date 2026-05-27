@@ -4,10 +4,15 @@ import { createOpenAICompatProvider } from "./providers/openaiCompat.ts";
 import { createPlaceholderProvider } from "./providers/placeholder.ts";
 import { createClaudeProvider } from "./providers/claude.ts";
 import { createGeminiProvider } from "./providers/gemini.ts";
+import { createDisabledProvider } from "./providers/disabled.ts";
 
 export function loadProvider(config: AgentConfig): LLMProvider {
   const baseUrl = (config.llm.baseUrl ?? "").trim();
   const model = (config.llm.model ?? "").trim();
+
+  if (config.llm.provider === "none") {
+    return createDisabledProvider();
+  }
 
   const envBaseUrl =
     process.env.HRZN_LLM_BASE_URL ||

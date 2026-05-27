@@ -12,10 +12,11 @@ This folder contains a TypeScript agent that:
 
 Edit `agent.config.json` → `llm.provider` and `llm.model`.
 
-- Allowed providers: `llama`, `gemini`, `claude`, `gpt`, `kimi`, `qwen`, `deepseek`
+- Allowed providers: `llama`, `gemini`, `claude`, `gpt`, `kimi`, `qwen`, `deepseek`, `none`
 - If `llm.baseUrl` is set, hrzn treats it as an OpenAI-compatible endpoint (recommended for local Llama).
 - If `llm.provider` is omitted, hrzn auto-detects from common env vars (or defaults to `gpt`).
 - API keys are intended to come from env vars in CI (names default by provider; overridable via `llm.apiKeyEnv`).
+- Set `llm.provider: "none"` to disable LLM calls (commands that require the LLM, like `heal`, will fail with a clear error).
 
 Common API key envs:
 

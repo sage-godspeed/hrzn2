@@ -9,7 +9,8 @@ export type LLMProviderId =
   | "gpt"
   | "kimi"
   | "qwen"
-  | "deepseek";
+  | "deepseek"
+  | "none";
 
 const allowedProviders: LLMProviderId[] = [
   "llama",
@@ -19,6 +20,7 @@ const allowedProviders: LLMProviderId[] = [
   "kimi",
   "qwen",
   "deepseek",
+  "none",
 ];
 
 function normalizeProviderId(raw: string): LLMProviderId {
@@ -109,6 +111,8 @@ function modelFromEnv(provider: LLMProviderId): string {
       return process.env.KIMI_MODEL || "";
     case "llama":
       return process.env.OLLAMA_MODEL || process.env.LLAMA_MODEL || "";
+    case "none":
+      return "";
   }
 }
 
