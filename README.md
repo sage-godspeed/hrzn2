@@ -33,6 +33,7 @@ If the config is elsewhere:
 
 When the config file does not exist, hrzn will create a default `agent.config.json` at the target root during `init`.
 If `testcases/TEMPLATE.md` is missing or missing required sections, `hrzn template` uses the built-in example and writes `TEMPLATE.md`.
+When `--auto` is used, the test ID and Title are aligned to the final numbered filename.
 
 ## Install runner dependencies
 
