@@ -13,7 +13,14 @@ import { healLoop } from "./heal/healLoop.ts";
 import { writeRunReport } from "./report/runReport.ts";
 import { applySpecEditsToMarkdown, type SpecEdit } from "./spec/update.ts";
 
-type Command = "init" | "run" | "test" | "synth" | "heal" | "template" | "install";
+type Command =
+  | "init"
+  | "run"
+  | "test"
+  | "synth"
+  | "heal"
+  | "template"
+  | "install";
 
 function usage(agentName: string) {
   return [
@@ -183,17 +190,15 @@ async function resolvePackageManager(
   return "npm";
 }
 
-function installCommand(
-  pkg: "npm" | "pnpm" | "yarn",
-  deps: string[],
-) {
+function installCommand(pkg: "npm" | "pnpm" | "yarn", deps: string[]) {
   if (pkg === "pnpm") return { cmd: "pnpm", args: ["add", "-D", ...deps] };
   if (pkg === "yarn") return { cmd: "yarn", args: ["add", "-D", ...deps] };
   return { cmd: "npm", args: ["install", "-D", ...deps] };
 }
 
 function playwrightBrowserInstallCommand(pkg: "npm" | "pnpm" | "yarn") {
-  if (pkg === "pnpm") return { cmd: "pnpm", args: ["exec", "playwright", "install"] };
+  if (pkg === "pnpm")
+    return { cmd: "pnpm", args: ["exec", "playwright", "install"] };
   if (pkg === "yarn") return { cmd: "yarn", args: ["playwright", "install"] };
   return { cmd: "npx", args: ["playwright", "install"] };
 }
@@ -366,7 +371,9 @@ export async function main() {
     const runnerRaw = (flags.runner || "").trim().toLowerCase();
     const runner = runnerRaw || config.defaultRunner;
     if (runner !== "playwright" && runner !== "cypress" && runner !== "both") {
-      process.stderr.write("install --runner must be playwright, cypress, or both.\n");
+      process.stderr.write(
+        "install --runner must be playwright, cypress, or both.\n",
+      );
       process.exit(2);
     }
 

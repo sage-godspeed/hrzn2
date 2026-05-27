@@ -168,6 +168,8 @@ export function createCypressRunner(input: {
             `Expected: ${localBin}`,
             "Install Cypress in the target project:",
             "  npm i -D cypress",
+            "Or use hrzn to install:",
+            "  hrzn install --runner cypress",
           ].join("\n"),
         );
       }

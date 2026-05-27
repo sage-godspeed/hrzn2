@@ -162,6 +162,8 @@ export function createPlaywrightRunner(input: {
             `Expected: ${localBin}`,
             "Install Playwright in the target project (recommended):",
             "  npm i -D @playwright/test && npx playwright install",
+            "Or use hrzn to install:",
+            "  hrzn install --runner playwright --with-browsers",
             "Or point hrzn at a projectRoot that already has Playwright installed.",
           ].join("\n"),
         );
