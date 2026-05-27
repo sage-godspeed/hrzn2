@@ -6,10 +6,14 @@ Date: 2026-05-27 (Africa/Lagos)
 
 - `hrzn` CLI runs locally (Node v22+ strip-types): `node bin/hrzn2.js ...`
 - `init` creates scaffold folders + example testcase if missing.
-- `run` parses a testcase (`testcases/<ID>.md` or a path), prints selected LLM provider + effective policy, and appends a run event to `e2e/changelog/e2e-graph.json`.
-- A default safe policy engine exists and is applied when no workspace rules are found; it merges testcase `Healing Policy` allow/deny.
-- LLM provider selection is validated against an allowlist: `llama|gemini|claude|gpt|kimi|qwen|deepseek` (adapters are placeholders; no network calls yet).
-- Git repo initialized; commit history created to track major iterations.
+- `run` parses a testcase, prints selected LLM provider + effective policy, and logs runs to the graph changelog.
+- `template` generates testcase templates (supports `--auto`).
+- `synth` generates Playwright/Cypress tests (respects `preferredRunner`).
+- `test` runs Playwright/Cypress and collects artifacts + runner logs.
+- `heal` runs the healing loop, applies patches within policy, and can propose spec updates.
+- Policy engine supports workspace overrides via `AGENTS.md` and testcase allow/deny merging.
+- LLM providers include OpenAI-compat plus native Claude/Gemini adapters; `none` disables LLM calls.
+- Graph changelog writes `Run` + `Change` nodes and tracks active test edges.
 
 ## Key files
 
@@ -19,7 +23,11 @@ Date: 2026-05-27 (Africa/Lagos)
 - Spec parser: `src/spec/parser.ts`
 - Graph changelog writer: `src/graph/changelog.ts`
 - Policy engine + default policy: `src/policy/policyEngine.ts`, `src/policy/defaultPolicy.ts`
-- LLM provider wiring (placeholder): `src/llm/loadProvider.ts`, `src/llm/providers/placeholder.ts`
+- LLM provider wiring: `src/llm/loadProvider.ts`, `src/llm/providers/*`
+- Synthesizer: `src/synthesizer/*`
+- Runners: `src/e2e/*`
+- Healer: `src/heal/*`
+- Spec update/serialization: `src/spec/update.ts`, `src/spec/serialize.ts`
 
 ## How to run
 
@@ -40,13 +48,10 @@ Date: 2026-05-27 (Africa/Lagos)
 
 ## What’s not implemented yet (next milestones)
 
-- Real LLM provider adapters (including `llama` local / OpenAI-compatible endpoint support).
-- Playwright/Cypress runner implementations + evidence collection.
-- Spec → test synthesizer (generate actual E2E test files).
-- Patch plan execution (apply changes to tests) + self-heal loop (triage → patch → rerun).
-- Changelog expansion to include explicit “Change” nodes + artifact references.
-- CI-friendly output (`--ci`, `--dry-run`, run report JSON, PR/patch workflows).
+- Native adapters for DeepSeek/Qwen/Kimi (optional; OpenAI-compat works).
+- Automated CI/lint/test workflow.
+- Publish automation and release docs.
 
 ## Next suggested task (to unblock everything)
 
-Implement `llama` local provider via an OpenAI-compatible `baseUrl` (or `ollama` CLI), then implement Playwright runner first (best artifacts for healing).
+Add a CI workflow and publish automation (npm release steps).

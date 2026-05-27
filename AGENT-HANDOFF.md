@@ -11,13 +11,16 @@
 
 ## Current capabilities
 
-- CLI supports `init` and `run <testcase.md|TEST_ID>` with `--projectRoot` and `--config`.
-- Testcase Markdown parsing works (into a structured `TestcaseSpec`).
-- Graph changelog writes `Run` + `TestCase` nodes/events to `e2e/changelog/e2e-graph.json`.
-- Runner/healer/provider interfaces exist (no concrete runners or provider adapters yet).
+- CLI supports `init`, `run`, `template`, `synth`, `test`, and `heal` with `--projectRoot`, `--config`, and CI/report flags.
+- Testcase Markdown parsing + serialization works (spec edits can be applied with approval gating).
+- Playwright/Cypress runners collect artifacts and parse JSON failure output.
+- Healing loop applies patches within policy and can propose spec updates.
+- Graph changelog writes `Run` + `Change` nodes and tracks active test edges.
+- Provider wiring supports OpenAI-compat plus native Claude/Gemini adapters.
+- Workspace policy overrides are parsed from `AGENTS.md`.
 
 ## Next big pieces
 
-- Implement Playwright/Cypress runners + artifact collection.
-- Implement policy engine + healing loop + patch application.
-- Implement real LLM provider adapters behind the `LLMProvider` interface.
+- Add native DeepSeek/Qwen/Kimi adapters if needed (OpenAI-compat already works).
+- Add CI/test automation coverage (lint/tests) and docs for verification steps.
+- Add publish automation (npm scripts, release workflow).
