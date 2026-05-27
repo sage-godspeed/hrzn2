@@ -5,7 +5,8 @@
   "description": "Provider-agnostic E2E test authoring + self-healing agent (Playwright/Cypress).",
   "type": "module",
   "bin": {
-    "hrzn": "bin/hrzn2.js"
+    "hrzn": "bin/hrzn2.js",
+    "hrzn2": "bin/hrzn2.js"
   },
   "files": [
     "bin",
