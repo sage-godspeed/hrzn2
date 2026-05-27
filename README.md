@@ -32,6 +32,7 @@ If the config is elsewhere:
 - `node bin/hrzn2.js run AUTH-LOGIN-001 --projectRoot /path/to/project --config /path/to/project/agent.config.json`
 
 When the config file does not exist, hrzn will create a default `agent.config.json` at the target root during `init`.
+If `testcases/TEMPLATE.md` is missing, `hrzn template` uses the built-in example and writes `TEMPLATE.md`.
 
 ## Install runner dependencies
 
@@ -43,7 +44,7 @@ When the config file does not exist, hrzn will create a default `agent.config.js
 - `hrzn init [--projectRoot <dir>] [--config <path>]`
 - `hrzn run <testcase.md|TEST_ID> [--projectRoot <dir>] [--config <path>]`
 - `hrzn install [--runner <playwright|cypress|both>] [--packageManager <npm|pnpm|yarn>] [--with-browsers]`
-- `hrzn template <TEST_ID> [--out <path>] [--overwrite] [--auto]`
+- `hrzn template [TEST_ID] [--out <path>] [--overwrite] [--auto]`
 - `hrzn synth <TEST_ID|testcase.md> [--overwrite] [--dry-run] [--report <path>] [--patch <path>]`
 - `hrzn test <TEST_ID|testcase.md> [--suite <name> | --all] [--headed] [--retries N] [--dry-run] [--report <path>]`
 - `hrzn heal <TEST_ID|testcase.md> [--suite <name> | --all] [--dry-run] [--report <path>] [--patch <path>] [--approve <path>]`
