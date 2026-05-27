@@ -31,6 +31,8 @@ If the config is elsewhere:
 
 - `node bin/hrzn2.js run AUTH-LOGIN-001 --projectRoot /path/to/project --config /path/to/project/agent.config.json`
 
+When the config file does not exist, hrzn will create a default `agent.config.json` at the target root during `init`.
+
 ## Install runner dependencies
 
 - `hrzn install --runner playwright --with-browsers`
@@ -64,6 +66,11 @@ Provider behaviour:
 - If `llm.baseUrl` is set, hrzn uses it as an OpenAI compatible endpoint.
 - If `llm.provider` is omitted, hrzn auto-detects from env vars (defaults to `gpt`).
 - Set `llm.provider: "none"` to disable LLM calls.
+
+Native adapters:
+
+- `llama` uses the Ollama `/api/chat` endpoint and requires a model name.
+- `deepseek` uses `/v1/chat/completions` with the DeepSeek base URL.
 
 Common API key envs:
 
@@ -144,12 +151,14 @@ Notes:
 From this folder:
 
 - `npm i -g .`
-- Then run `hrzn ...`
+- Then run `hrzn ...` or `hrzn2 ...`
 
 Alternative:
 
 - `npm link` (in this folder)
 - `npm link hrzn` (in the target project)
+
+If `npm link` fails with permissions on macOS, rerun with `sudo npm link`.
 
 ## Publish to npm
 
