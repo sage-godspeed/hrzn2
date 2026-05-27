@@ -139,7 +139,25 @@ export async function main() {
   }
 
   if (cmd === "heal") {
-    const { finalEvidence, iterations } = await healLoop({ config, spec, policy: resolved.policy, llm });
+    const { finalEvidence, iterations, plans } = await healLoop({ config, spec, policy: resolved.policy, llm });
+    const runNodeId = await graph.appendRun({
+      runner: config.defaultRunner,
+      summary: finalEvidence.failingTests.length ? `Heal failed for ${spec.id}` : `Heal passed for ${spec.id}`,
+      artifacts: { runId: finalEvidence.runId, policySource: resolved.policy.source },
+      testcases: [spec.id]
+    });
+    // Record changes (best-effort). We don't track file diffs yet; we at least store change kinds.
+    for (const p of plans) {
+      await graph.appendChange({
+        runNodeId,
+        kind: "heal_plan",
+        confidence: p.confidence,
+        summary: `${p.classification}`,
+        modifiedFiles: [`e2e/tests/${spec.id}.spec.ts`],
+        detail: { changes: p.changes }
+      });
+    }
+
     process.stdout.write(finalEvidence.failingTests.length ? `Heal: FAIL after ${iterations}\n` : `Heal: PASS after ${iterations}\n`);
     return;
   }

@@ -66,17 +66,18 @@ export async function healLoop(input: {
   spec: TestcaseSpec;
   policy: SafePolicy;
   llm: { structured: <T>(req: any) => Promise<T> };
-}): Promise<{ finalEvidence: Evidence; iterations: number }> {
+}): Promise<{ finalEvidence: Evidence; iterations: number; plans: PatchPlan[] }> {
   let iterations = 0;
+  const plans: PatchPlan[] = [];
   let evidence = await runE2E(input.config, { testId: input.spec.id, retries: 0 });
 
   while (evidence.failingTests.length && iterations < input.policy.maxHealIterations) {
     iterations++;
     const healed = await healOnce({ ...input, evidence });
     if (healed.applied <= 0) break;
+    plans.push(healed.plan);
     evidence = await runE2E(input.config, { testId: input.spec.id, retries: 0 });
   }
 
-  return { finalEvidence: evidence, iterations };
+  return { finalEvidence: evidence, iterations, plans };
 }
-

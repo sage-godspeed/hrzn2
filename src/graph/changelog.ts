@@ -12,7 +12,7 @@ export interface Graph {
     runNodeId: string;
     summary: string;
     artifacts: Record<string, unknown>;
-    changes: Array<Record<string, unknown>>;
+    changes: Array<{ changeNodeId: string; detail?: Record<string, unknown> }>;
   }>;
 }
 
@@ -61,6 +61,34 @@ export class GraphChangelog {
     const eventId = `evt:${runId}`;
     this.graph.events.push({ id: eventId, runNodeId: runId, summary: input.summary, artifacts: input.artifacts, changes: [] });
     await this.flush();
+    return runId;
+  }
+
+  async appendChange(input: {
+    runNodeId: string;
+    kind: string;
+    confidence?: number;
+    summary?: string;
+    modifiedFiles?: string[];
+    detail?: Record<string, unknown>;
+  }) {
+    const changeId = `chg:${input.runNodeId}:${this.graph.nodes.length}`;
+    this.graph.nodes.push({
+      id: changeId,
+      type: "Change",
+      props: {
+        kind: input.kind,
+        confidence: input.confidence ?? null,
+        summary: input.summary ?? null,
+        modifiedFiles: input.modifiedFiles ?? []
+      }
+    });
+    this.graph.edges.push({ from: input.runNodeId, to: changeId, type: "PRODUCED" });
+
+    const evt = this.graph.events.find((e) => e.runNodeId === input.runNodeId);
+    if (evt) evt.changes.push({ changeNodeId: changeId, detail: input.detail });
+    await this.flush();
+    return changeId;
   }
 
   private async flush() {
