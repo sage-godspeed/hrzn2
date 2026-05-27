@@ -6,8 +6,9 @@ import { parseTestcaseMarkdown } from "./spec/parser.ts";
 import { GraphChangelog } from "./graph/changelog.ts";
 import { loadProvider } from "./llm/loadProvider.ts";
 import { resolvePolicy } from "./policy/policyEngine.ts";
+import { runE2E } from "./e2e/index.ts";
 
-type Command = "init" | "run";
+type Command = "init" | "run" | "test";
 
 function usage(agentName: string) {
   return [
@@ -16,10 +17,13 @@ function usage(agentName: string) {
     "Usage:",
     `  ${agentName} init [--projectRoot <dir>] [--config <path>]`,
     `  ${agentName} run <testcase.md> [--projectRoot <dir>] [--config <path>]`,
+    `  ${agentName} test <TEST_ID|testcase.md> [--projectRoot <dir>] [--config <path>] [--headed] [--retries N]`,
     "",
     "Flags:",
     "  --projectRoot <dir>   Run against another repo/project root",
-    "  --config <path>       Path to agent.config.json (defaults to <projectRoot>/agent.config.json)"
+    "  --config <path>       Path to agent.config.json (defaults to <projectRoot>/agent.config.json)",
+    "  --headed              Run browser headed (Playwright)",
+    "  --retries N            Retries for failing tests (Playwright)"
   ].join("\n");
 }
 
@@ -34,6 +38,14 @@ function parseFlags(argv: string[]) {
     }
     if (a === "--config") {
       flags.config = argv[++i] ?? "";
+      continue;
+    }
+    if (a === "--headed") {
+      flags.headed = "true";
+      continue;
+    }
+    if (a === "--retries") {
+      flags.retries = argv[++i] ?? "";
       continue;
     }
     positional.push(a);
@@ -51,7 +63,7 @@ export async function main() {
 
   const cmd = (positional[0] ?? "") as Command;
 
-  if (!cmd || (cmd !== "init" && cmd !== "run")) {
+  if (!cmd || (cmd !== "init" && cmd !== "run" && cmd !== "test")) {
     process.stderr.write(usage(agentName) + "\n");
     process.exit(2);
   }
@@ -104,7 +116,24 @@ export async function main() {
   process.stdout.write(`LLM provider: ${llm.name}\n`);
   process.stdout.write(`LLM detectedFrom: ${config.llm.detectedFrom ?? "config"}\n`);
   process.stdout.write(`Policy: ${resolved.policy.source} (allow: ${resolved.policy.allow.join(", ")})\n`);
-  process.stdout.write(`Next: implement runners + synthesizer; this scaffold currently parses + logs.\n`);
+
+  if (cmd === "run") {
+    process.stdout.write(`Next: implement runners + synthesizer; this scaffold currently parses + logs.\n`);
+    return;
+  }
+
+  const retries = flags.retries ? Number(flags.retries) : undefined;
+  const headed = flags.headed === "true";
+  const evidence = await runE2E(config, { testId: spec.id, headed, retries });
+
+  await graph.appendRun({
+    runner: config.defaultRunner,
+    summary: evidence.failingTests.length ? `E2E failed for ${spec.id}` : `E2E passed for ${spec.id}`,
+    artifacts: { policySource: resolved.policy.source, agentsMd: resolved.workspaceRules.agentsMdPath ?? null, runId: evidence.runId },
+    testcases: [spec.id]
+  });
+
+  process.stdout.write(evidence.failingTests.length ? "E2E: FAIL\n" : "E2E: PASS\n");
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

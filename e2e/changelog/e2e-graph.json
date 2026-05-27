@@ -105,6 +105,20 @@
       "props": {
         "runner": "playwright"
       }
+    },
+    {
+      "id": "run:2026-05-27T08:05:36.576Z",
+      "type": "Run",
+      "props": {
+        "runner": "playwright"
+      }
+    },
+    {
+      "id": "run:2026-05-27T08:09:29.365Z",
+      "type": "Run",
+      "props": {
+        "runner": "playwright"
+      }
     }
   ],
   "edges": [
@@ -150,6 +164,16 @@
     },
     {
       "from": "run:2026-05-26T23:28:53.632Z",
+      "to": "tc:AUTH-LOGIN-001",
+      "type": "RAN"
+    },
+    {
+      "from": "run:2026-05-27T08:05:36.576Z",
+      "to": "tc:AUTH-LOGIN-001",
+      "type": "RAN"
+    },
+    {
+      "from": "run:2026-05-27T08:09:29.365Z",
       "to": "tc:AUTH-LOGIN-001",
       "type": "RAN"
     }
@@ -260,6 +284,26 @@
       "summary": "Initialized graph changelog",
       "artifacts": {
         "policySource": "default",
+        "agentsMd": null
+      },
+      "changes": []
+    },
+    {
+      "id": "evt:run:2026-05-27T08:05:36.576Z",
+      "runNodeId": "run:2026-05-27T08:05:36.576Z",
+      "summary": "Parsed testcase AUTH-LOGIN-001",
+      "artifacts": {
+        "policySource": "merged",
+        "agentsMd": null
+      },
+      "changes": []
+    },
+    {
+      "id": "evt:run:2026-05-27T08:09:29.365Z",
+      "runNodeId": "run:2026-05-27T08:09:29.365Z",
+      "summary": "Parsed testcase AUTH-LOGIN-001",
+      "artifacts": {
+        "policySource": "merged",
         "agentsMd": null
       },
       "changes": []
