@@ -19,6 +19,9 @@ Use this file to keep shared context for work in this repo. Keep entries short a
 - Auto-numbered template suffixes are zero-padded to three digits starting at 001.
 - Scaffold now creates TEMPLATE.md without adding an example testcase file.
 - Generated testcase filenames default to lowercase.
+- Added --browsers to Playwright install for specific engines.
+- Added run --all/--suite parsing and avoided double -001 suffixes for templates.
+- Added rerun command backed by e2e/artifacts/last-run.json.
 
 ## Pending work
 
