@@ -469,6 +469,23 @@ export async function main() {
       }
     }
 
+    const requiredSections = [
+      /^##\s*Title\b/m,
+      /^##\s*Tags\b/m,
+      /^##\s*Runner\b/m,
+      /^##\s*Preconditions\b/m,
+      /^##\s*Data\b/m,
+      /^##\s*Steps\b/m,
+      /^##\s*Assertions\b/m,
+    ];
+
+    if (!requiredSections.every((re) => re.test(template))) {
+      template = exampleTestcaseMarkdown();
+      if (!dryRun) {
+        await writeFile(templatePath, template, "utf8");
+      }
+    }
+
     if (flags.auto === "true") {
       const dir = resolve(outputPath, "..");
       const base = outputPath.replace(/\.md$/i, "");
@@ -499,10 +516,19 @@ export async function main() {
       testId = basename(outputPath).replace(/\.md$/i, "");
     }
 
-    const replaced = template.replace(
-      /^#\s*TestCase:\s*.+$/m,
-      `# TestCase: ${testId}`,
-    );
+    let replaced = template.replace(/^#\s*.+$/m, `# TestCase: ${testId}`);
+
+    replaced = replaced.replace(/##\s*Title\s*\n([^\n]*)/m, (match, line) => {
+      const trimmed = String(line ?? "").trim();
+      if (
+        !trimmed ||
+        /short human-readable title/i.test(trimmed) ||
+        /describe the goal/i.test(trimmed)
+      ) {
+        return `## Title\n${testId}`;
+      }
+      return match;
+    });
 
     if (!dryRun) {
       await writeFile(outputPath, replaced, "utf8");
