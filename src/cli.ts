@@ -20,6 +20,7 @@ type Command =
   | "test"
   | "synth"
   | "heal"
+  | "rerun"
   | "template"
   | "install";
 
@@ -29,8 +30,9 @@ function usage(agentName: string) {
     "",
     "Usage:",
     `  ${agentName} init [--projectRoot <dir>] [--config <path>]`,
-    `  ${agentName} run <testcase.md> [--projectRoot <dir>] [--config <path>]`,
-    `  ${agentName} install [--runner <playwright|cypress|both>] [--packageManager <npm|pnpm|yarn>] [--with-browsers]`,
+    `  ${agentName} run <testcase.md> [--projectRoot <dir>] [--config <path>] [--all] [--suite <name>]`,
+    `  ${agentName} rerun`,
+    `  ${agentName} install [--runner <playwright|cypress|both>] [--packageManager <npm|pnpm|yarn>] [--with-browsers] [--browsers <list>]`,
     `  ${agentName} template [TEST_ID] [--out <path>] [--overwrite]`,
     `  ${agentName} synth <TEST_ID|testcase.md> [--projectRoot <dir>] [--config <path>] [--overwrite]`,
     `  ${agentName} test <TEST_ID|testcase.md> [--projectRoot <dir>] [--config <path>] [--headed] [--retries N]`,
@@ -54,6 +56,7 @@ function usage(agentName: string) {
     "  --runner <name>       Runner for install (playwright|cypress|both)",
     "  --packageManager <n>  Package manager for install (npm|pnpm|yarn)",
     "  --with-browsers       Install Playwright browsers (install command)",
+    "  --browsers <list>     Comma-separated Playwright browsers (chromium,firefox,webkit)",
   ].join("\n");
 }
 
@@ -130,6 +133,10 @@ function parseFlags(argv: string[]) {
       flags.withBrowsers = "true";
       continue;
     }
+    if (a === "--browsers") {
+      flags.browsers = argv[++i] ?? "";
+      continue;
+    }
     positional.push(a);
   }
   return { flags, positional };
@@ -197,11 +204,16 @@ function installCommand(pkg: "npm" | "pnpm" | "yarn", deps: string[]) {
   return { cmd: "npm", args: ["install", "-D", ...deps] };
 }
 
-function playwrightBrowserInstallCommand(pkg: "npm" | "pnpm" | "yarn") {
+function playwrightBrowserInstallCommand(
+  pkg: "npm" | "pnpm" | "yarn",
+  browsers: string[],
+) {
+  const suffix = browsers.length ? browsers : [];
   if (pkg === "pnpm")
-    return { cmd: "pnpm", args: ["exec", "playwright", "install"] };
-  if (pkg === "yarn") return { cmd: "yarn", args: ["playwright", "install"] };
-  return { cmd: "npx", args: ["playwright", "install"] };
+    return { cmd: "pnpm", args: ["exec", "playwright", "install", ...suffix] };
+  if (pkg === "yarn")
+    return { cmd: "yarn", args: ["playwright", "install", ...suffix] };
+  return { cmd: "npx", args: ["playwright", "install", ...suffix] };
 }
 
 async function loadSpecs(projectRoot: string, testcasesDir: string) {
@@ -362,6 +374,7 @@ export async function main() {
       cmd !== "test" &&
       cmd !== "synth" &&
       cmd !== "heal" &&
+      cmd !== "rerun" &&
       cmd !== "template")
   ) {
     process.stderr.write(usage(agentName) + "\n");
@@ -379,13 +392,18 @@ export async function main() {
     }
 
     const pkg = await resolvePackageManager(projectRoot, flags.packageManager);
-    const withBrowsers = flags.withBrowsers === "true";
+    const browsers = (flags.browsers || "")
+      .split(",")
+      .map((b) => b.trim())
+      .filter(Boolean);
+    const withBrowsers = flags.withBrowsers === "true" || browsers.length > 0;
     const targets = runner === "both" ? ["playwright", "cypress"] : [runner];
 
     const commands: Array<{ cmd: string; args: string[] }> = [];
     if (targets.includes("playwright")) {
       commands.push(installCommand(pkg, ["@playwright/test"]));
-      if (withBrowsers) commands.push(playwrightBrowserInstallCommand(pkg));
+      if (withBrowsers)
+        commands.push(playwrightBrowserInstallCommand(pkg, browsers));
     }
     if (targets.includes("cypress")) {
       commands.push(installCommand(pkg, ["cypress"]));
@@ -404,6 +422,67 @@ export async function main() {
     }
     process.stdout.write("Install complete.\n");
     return;
+  }
+
+  async function writeLastRunReport(report: Record<string, unknown>) {
+    const path = resolve(config.paths.artifactsDir, "last-run.json");
+    await writeRunReport(path, report as any);
+  }
+
+  async function loadLastRunReport() {
+    const path = resolve(config.paths.artifactsDir, "last-run.json");
+    const raw = await readFile(path, "utf8");
+    return JSON.parse(raw) as Record<string, unknown>;
+  }
+
+  if (cmd === "rerun") {
+    try {
+      const last = await loadLastRunReport();
+      const command = String(last.command ?? "");
+      if (
+        !command ||
+        (command !== "test" && command !== "heal" && command !== "synth")
+      ) {
+        throw new Error("last-run.json does not contain a rerunnable command.");
+      }
+
+      const args: string[] = [command];
+      const suite = String(last.suite ?? "");
+      const all = Boolean(last.all);
+      const testcaseId = String(last.testcaseId ?? "");
+      const retries =
+        typeof last.retries === "number" ? String(last.retries) : "";
+      const headed = last.headed === true;
+      const dryRunFlag = last.dryRun === true;
+      const projectRoot = String(last.projectRoot ?? "");
+
+      if (suite) {
+        args.push("--suite", suite);
+      } else if (all) {
+        args.push("--all");
+      } else if (testcaseId) {
+        args.push(testcaseId);
+      } else {
+        throw new Error("last-run.json does not include a testcase to rerun.");
+      }
+
+      if (retries) args.push("--retries", retries);
+      if (headed) args.push("--headed");
+      if (dryRunFlag) args.push("--dry-run");
+      if (projectRoot) args.push("--projectRoot", projectRoot);
+
+      const self = process.argv[1];
+      const selfArgs = self.endsWith(".ts")
+        ? ["--experimental-strip-types", self]
+        : [self];
+      const result = spawnSync(process.execPath, [...selfArgs, ...args], {
+        stdio: "inherit",
+      });
+      process.exit(result.status ?? 1);
+    } catch (err: any) {
+      process.stderr.write(`rerun failed: ${String(err?.message ?? err)}\n`);
+      process.exit(2);
+    }
   }
 
   if (!dryRun) await ensureProjectScaffold(config);
@@ -490,14 +569,15 @@ export async function main() {
     if (flags.auto === "true") {
       const dir = resolve(outputPath, "..");
       const base = outputPath.replace(/\.md$/i, "");
+      const baseRoot = base.replace(/-\d{3}$/i, "");
       const pad3 = (value: number) => String(value).padStart(3, "0");
       let index = 1;
-      let candidate = `${base}-${pad3(index)}.md`;
+      let candidate = `${baseRoot}-${pad3(index)}.md`;
       while (true) {
         try {
           await access(candidate);
           index += 1;
-          candidate = `${base}-${pad3(index)}.md`;
+          candidate = `${baseRoot}-${pad3(index)}.md`;
         } catch {
           outputPath = candidate;
           break;
@@ -635,8 +715,7 @@ export async function main() {
 
   if (cmd === "run") {
     if (suite || isAll) {
-      process.stderr.write("'run' does not support --suite/--all.\n");
-      process.exit(2);
+      process.stdout.write(`Parsed ${filtered.length} testcases.\n`);
     }
     process.stdout.write(
       `Use 'synth', 'test', or 'heal' to generate tests, run E2E, or self-heal.\n`,
@@ -689,6 +768,7 @@ export async function main() {
       command: "synth",
       testcaseId: primary.spec.id,
       status: "pass" as const,
+      projectRoot: config.projectRoot,
       policySource: resolved.policy.source,
       llmProvider: llm.name,
       notes: result.wrote
@@ -705,12 +785,14 @@ export async function main() {
     if (flags.report) {
       await writeRunReport(flags.report, report);
     }
+    await writeLastRunReport(report);
     if (flags.ci === "true") emitCiReport(report);
     if (flags.patch && !dryRun) {
       const patchFile = await writePatchFile(flags.patch, projectRoot);
       if (flags.report) {
         await writeRunReport(flags.report, { ...report, patchFile });
       }
+      await writeLastRunReport({ ...report, patchFile });
       if (flags.ci === "true") emitCiReport({ ...report, patchFile });
     }
     return;
@@ -814,6 +896,7 @@ export async function main() {
           results.some((r) => r.status === "fail") || approvalPending
             ? "fail"
             : "pass",
+        projectRoot: config.projectRoot,
         policySource: resolved.policy.source,
         llmProvider: llm.name,
         ci: flags.ci === "true",
@@ -822,11 +905,13 @@ export async function main() {
         testcases: results.map((r) => r.testcaseId),
         results,
         suite: suite || undefined,
+        all: isAll || undefined,
         notes: approvalPending
           ? ["Spec update approval required for one or more tests"]
           : undefined,
       };
       if (flags.report) await writeRunReport(flags.report, report as any);
+      await writeLastRunReport(report as any);
       if (flags.ci === "true") emitCiReport(report);
       if (flags.ci === "true" && report.status === "fail") process.exit(1);
       return;
@@ -840,6 +925,7 @@ export async function main() {
         runner: config.defaultRunner,
         status: "pass" as const,
         iterations: 0,
+        projectRoot: config.projectRoot,
         policySource: resolved.policy.source,
         llmProvider: llm.name,
         notes: ["Dry-run: no tests executed or files written"],
@@ -848,6 +934,7 @@ export async function main() {
         git: collectGitMeta(projectRoot),
       };
       if (flags.report) await writeRunReport(flags.report, report);
+      await writeLastRunReport(report);
       if (flags.ci === "true") emitCiReport(report);
       return;
     }
@@ -920,6 +1007,7 @@ export async function main() {
           ? "fail"
           : "pass",
       iterations,
+      projectRoot: config.projectRoot,
       policySource: resolved.policy.source,
       llmProvider: llm.name,
       artifacts: finalEvidence.artifacts,
@@ -931,11 +1019,13 @@ export async function main() {
         : undefined,
     };
     if (flags.report) await writeRunReport(flags.report, report);
+    await writeLastRunReport(report);
     if (flags.ci === "true") emitCiReport(report);
     if (flags.patch) {
       const patchFile = await writePatchFile(flags.patch, projectRoot);
       if (flags.report)
         await writeRunReport(flags.report, { ...report, patchFile });
+      await writeLastRunReport({ ...report, patchFile });
       if (flags.ci === "true") emitCiReport({ ...report, patchFile });
     }
     if (flags.ci === "true")
@@ -951,6 +1041,7 @@ export async function main() {
         timestamp: new Date().toISOString(),
         command: "test",
         status: "pass" as const,
+        projectRoot: config.projectRoot,
         policySource: resolved.policy.source,
         llmProvider: llm.name,
         ci: flags.ci === "true",
@@ -964,8 +1055,12 @@ export async function main() {
           notes: ["Dry-run: no tests executed"],
         })),
         suite: suite || undefined,
+        all: isAll || undefined,
+        retries,
+        headed,
       };
       if (flags.report) await writeRunReport(flags.report, report as any);
+      await writeLastRunReport(report as any);
       if (flags.ci === "true") emitCiReport(report);
       return;
     }
@@ -975,14 +1070,18 @@ export async function main() {
       testcaseId: primary.spec.id,
       runner: config.defaultRunner,
       status: "pass" as const,
+      projectRoot: config.projectRoot,
       policySource: resolved.policy.source,
       llmProvider: llm.name,
       notes: ["Dry-run: no tests executed"],
       ci: flags.ci === "true",
       dryRun,
       git: collectGitMeta(projectRoot),
+      retries,
+      headed,
     };
     if (flags.report) await writeRunReport(flags.report, report);
+    await writeLastRunReport(report);
     if (flags.ci === "true") emitCiReport(report);
     return;
   }
@@ -1021,6 +1120,7 @@ export async function main() {
       timestamp: new Date().toISOString(),
       command: "test",
       status: results.some((r) => r.status === "fail") ? "fail" : "pass",
+      projectRoot: config.projectRoot,
       policySource: resolved.policy.source,
       llmProvider: llm.name,
       ci: flags.ci === "true",
@@ -1029,8 +1129,12 @@ export async function main() {
       testcases: results.map((r) => r.testcaseId),
       results,
       suite: suite || undefined,
+      all: isAll || undefined,
+      retries,
+      headed,
     };
     if (flags.report) await writeRunReport(flags.report, report as any);
+    await writeLastRunReport(report as any);
     if (flags.ci === "true") emitCiReport(report);
     if (flags.ci === "true" && report.status === "fail") process.exit(1);
     return;
@@ -1065,19 +1169,24 @@ export async function main() {
     testcaseId: primary.spec.id,
     runner: config.defaultRunner,
     status: evidence.failingTests.length ? "fail" : "pass",
+    projectRoot: config.projectRoot,
     policySource: resolved.policy.source,
     llmProvider: llm.name,
     artifacts: evidence.artifacts,
     ci: flags.ci === "true",
     dryRun,
     git: collectGitMeta(projectRoot),
+    retries,
+    headed,
   };
   if (flags.report) await writeRunReport(flags.report, report);
+  await writeLastRunReport(report);
   if (flags.ci === "true") emitCiReport(report);
   if (flags.patch) {
     const patchFile = await writePatchFile(flags.patch, projectRoot);
     if (flags.report)
       await writeRunReport(flags.report, { ...report, patchFile });
+    await writeLastRunReport({ ...report, patchFile });
     if (flags.ci === "true") emitCiReport({ ...report, patchFile });
   }
   if (flags.ci === "true") process.exit(evidence.failingTests.length ? 1 : 0);

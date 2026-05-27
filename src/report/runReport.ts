@@ -11,6 +11,9 @@ export interface RunReport {
   runner?: string;
   status: "pass" | "fail";
   iterations?: number;
+  retries?: number;
+  headed?: boolean;
+  all?: boolean;
   policySource?: string;
   llmProvider?: string;
   artifacts?: Record<string, unknown>;
@@ -18,6 +21,7 @@ export interface RunReport {
   ci?: boolean;
   dryRun?: boolean;
   patchFile?: string;
+  projectRoot?: string;
   git?: {
     branch?: string;
     commit?: string;
