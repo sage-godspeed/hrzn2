@@ -489,13 +489,14 @@ export async function main() {
     if (flags.auto === "true") {
       const dir = resolve(outputPath, "..");
       const base = outputPath.replace(/\.md$/i, "");
+      const pad2 = (value: number) => String(value).padStart(2, "0");
       let index = 1;
       let candidate = outputPath;
       while (true) {
         try {
           await access(candidate);
           index += 1;
-          candidate = `${base}-${index}.md`;
+          candidate = `${base}-${pad2(index)}.md`;
         } catch {
           outputPath = candidate;
           break;
@@ -512,8 +513,11 @@ export async function main() {
       }
     }
 
-    if (!hasTestId) {
-      testId = basename(outputPath).replace(/\.md$/i, "");
+    const testIdFromPath = basename(outputPath).replace(/\.md$/i, "");
+    if (flags.auto === "true") {
+      testId = testIdFromPath;
+    } else if (!hasTestId) {
+      testId = testIdFromPath;
     }
 
     let replaced = template.replace(/^#\s*.+$/m, `# TestCase: ${testId}`);
