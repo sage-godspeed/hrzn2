@@ -70,6 +70,7 @@ export async function main() {
     });
     process.stdout.write(`Initialized. Config agentName=${agentName}\n`);
     process.stdout.write(`LLM provider: ${llm.name}\n`);
+    process.stdout.write(`LLM detectedFrom: ${config.llm.detectedFrom ?? "config"}\n`);
     process.stdout.write(`Policy: ${basePolicy.policy.source} (allow: ${basePolicy.policy.allow.join(", ")})\n`);
     return;
   }
@@ -101,6 +102,7 @@ export async function main() {
 
   process.stdout.write(`Parsed testcase: ${spec.id} (${spec.title})\n`);
   process.stdout.write(`LLM provider: ${llm.name}\n`);
+  process.stdout.write(`LLM detectedFrom: ${config.llm.detectedFrom ?? "config"}\n`);
   process.stdout.write(`Policy: ${resolved.policy.source} (allow: ${resolved.policy.allow.join(", ")})\n`);
   process.stdout.write(`Next: implement runners + synthesizer; this scaffold currently parses + logs.\n`);
 }

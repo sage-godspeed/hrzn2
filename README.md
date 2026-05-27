@@ -13,7 +13,8 @@ Edit `agent.config.json` → `agentName`.
 ## Configure AI provider
 Edit `agent.config.json` → `llm.provider` and `llm.model`.
 - Allowed providers: `llama`, `gemini`, `claude`, `gpt`, `kimi`, `qwen`, `deepseek`
-- Adapters are placeholders for now (no network calls yet); selecting a provider is validated and surfaced by the CLI.
+- If `llm.baseUrl` is set, hrzn2 treats it as an OpenAI-compatible endpoint (recommended for local Llama).
+- If `llm.provider` is omitted, hrzn2 auto-detects from common env vars (or defaults to `gpt`).
 - API keys are intended to come from env vars in CI (names default by provider; overridable via `llm.apiKeyEnv`).
 
 ## Requirements
