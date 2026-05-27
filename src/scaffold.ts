@@ -12,16 +12,23 @@ async function exists(p: string) {
   }
 }
 
-export async function ensureProjectScaffold(config: AgentConfig): Promise<void> {
+export async function ensureProjectScaffold(
+  config: AgentConfig,
+): Promise<void> {
   await mkdir(resolve(config.paths.testcasesDir), { recursive: true });
   await mkdir(resolve(config.paths.e2eDir), { recursive: true });
   await mkdir(resolve(config.paths.artifactsDir), { recursive: true });
-  await mkdir(resolve(dirname(config.paths.graphChangelogPath)), { recursive: true });
+  await mkdir(resolve(dirname(config.paths.graphChangelogPath)), {
+    recursive: true,
+  });
 
   const templatePath = resolve(config.paths.testcasesDir, "TEMPLATE.md");
   if (!(await exists(templatePath))) {
     let template = exampleTestcaseMarkdown();
-    template = template.replace(/^#\s*TestCase:\s*.+$/m, "# TestCase: TEMPLATE");
+    template = template.replace(
+      /^#\s*TestCase:\s*.+$/m,
+      "# TestCase: TEMPLATE",
+    );
     template = template.replace(
       /##\s*Title\s*\n([^\n]*)/m,
       "## Title\nShort human-readable title",
