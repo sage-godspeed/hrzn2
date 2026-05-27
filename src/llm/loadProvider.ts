@@ -5,6 +5,8 @@ import { createPlaceholderProvider } from "./providers/placeholder.ts";
 import { createClaudeProvider } from "./providers/claude.ts";
 import { createGeminiProvider } from "./providers/gemini.ts";
 import { createDisabledProvider } from "./providers/disabled.ts";
+import { createDeepSeekProvider } from "./providers/deepseek.ts";
+import { createLlamaProvider } from "./providers/llama.ts";
 
 export function loadProvider(config: AgentConfig): LLMProvider {
   const baseUrl = (config.llm.baseUrl ?? "").trim();
@@ -62,6 +64,22 @@ export function loadProvider(config: AgentConfig): LLMProvider {
     return createGeminiProvider({
       baseUrl:
         nativeBaseUrl || "https://generativelanguage.googleapis.com/v1beta",
+      model,
+      apiKeyEnv: (config.llm.apiKeyEnv ?? "").trim(),
+    });
+  }
+
+  if (config.llm.provider === "deepseek") {
+    return createDeepSeekProvider({
+      baseUrl: nativeBaseUrl || "https://api.deepseek.com/v1",
+      model,
+      apiKeyEnv: (config.llm.apiKeyEnv ?? "").trim(),
+    });
+  }
+
+  if (config.llm.provider === "llama") {
+    return createLlamaProvider({
+      baseUrl: nativeBaseUrl || "http://localhost:11434",
       model,
       apiKeyEnv: (config.llm.apiKeyEnv ?? "").trim(),
     });
