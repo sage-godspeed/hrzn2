@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 
 export type RunnerKind = "playwright" | "cypress";
 export type LLMProviderId =
@@ -224,7 +224,32 @@ export async function loadAgentConfig(input: {
   configPath: string;
 }): Promise<AgentConfig> {
   const p = resolve(input.configPath);
-  const raw = await readFile(p, "utf8");
+  let raw: string;
+  try {
+    raw = await readFile(p, "utf8");
+  } catch (err: any) {
+    if (err?.code !== "ENOENT") throw err;
+    const defaultConfig = {
+      agentName: "hrzn",
+      defaultRunner: "playwright",
+      llm: {
+        provider: "gpt",
+        model: "",
+        apiKeyEnv: "",
+        baseUrl: "",
+      },
+      paths: {
+        testcasesDir: "testcases",
+        e2eDir: "e2e",
+        artifactsDir: "e2e/artifacts",
+        graphChangelogPath: "e2e/changelog/e2e-graph.json",
+      },
+    };
+    await mkdir(dirname(p), { recursive: true });
+    const written = `${JSON.stringify(defaultConfig, null, 2)}\n`;
+    await writeFile(p, written, "utf8");
+    raw = written;
+  }
   const parsed = JSON.parse(raw) as Partial<AgentConfig>;
   const defaultRunner = (parsed.defaultRunner ?? "playwright") as RunnerKind;
   if (defaultRunner !== "playwright" && defaultRunner !== "cypress") {
