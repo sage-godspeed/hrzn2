@@ -16,7 +16,9 @@ Use this file to keep shared context for work in this repo. Keep entries short a
 - Allowed template without TEST_ID and added default template fallback.
 - Template now resets to the built-in example if required sections are missing.
 - Template uses the auto-numbered filename for TestCase and Title.
-- Auto-numbered template suffixes are zero-padded to two digits.
+- Auto-numbered template suffixes are zero-padded to three digits starting at 001.
+- Scaffold now creates TEMPLATE.md without adding an example testcase file.
+- Generated testcase filenames default to lowercase.
 
 ## Pending work
 
