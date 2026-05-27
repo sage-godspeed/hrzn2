@@ -1,5 +1,5 @@
 import { readFile, writeFile, access, readdir } from "node:fs/promises";
-import { resolve, relative } from "node:path";
+import { basename, resolve, relative } from "node:path";
 import { spawnSync } from "node:child_process";
 import { loadAgentConfig } from "./config.ts";
 import { ensureProjectScaffold } from "./scaffold.ts";
@@ -12,6 +12,7 @@ import { synthesizeTest } from "./synthesizer/index.ts";
 import { healLoop } from "./heal/healLoop.ts";
 import { writeRunReport } from "./report/runReport.ts";
 import { applySpecEditsToMarkdown, type SpecEdit } from "./spec/update.ts";
+import { exampleTestcaseMarkdown } from "./spec/example.ts";
 
 type Command =
   | "init"
@@ -30,7 +31,7 @@ function usage(agentName: string) {
     `  ${agentName} init [--projectRoot <dir>] [--config <path>]`,
     `  ${agentName} run <testcase.md> [--projectRoot <dir>] [--config <path>]`,
     `  ${agentName} install [--runner <playwright|cypress|both>] [--packageManager <npm|pnpm|yarn>] [--with-browsers]`,
-    `  ${agentName} template <TEST_ID> [--out <path>] [--overwrite]`,
+    `  ${agentName} template [TEST_ID] [--out <path>] [--overwrite]`,
     `  ${agentName} synth <TEST_ID|testcase.md> [--projectRoot <dir>] [--config <path>] [--overwrite]`,
     `  ${agentName} test <TEST_ID|testcase.md> [--projectRoot <dir>] [--config <path>] [--headed] [--retries N]`,
     `  ${agentName} heal <TEST_ID|testcase.md> [--projectRoot <dir>] [--config <path>]`,
@@ -436,11 +437,14 @@ export async function main() {
   }
 
   if (cmd === "template") {
-    const testId = positional[1];
+    const hasTestId = Boolean(positional[1]);
+    let testId = positional[1] || "";
     if (!testId) {
-      process.stderr.write("template requires a TEST_ID.\n");
-      process.stderr.write(usage(agentName) + "\n");
-      process.exit(2);
+      const now = new Date();
+      const y = String(now.getFullYear());
+      const m = String(now.getMonth() + 1).padStart(2, "0");
+      const d = String(now.getDate()).padStart(2, "0");
+      testId = `TEST-${y}${m}${d}`;
     }
     const templatePath = resolve(
       projectRoot,
@@ -454,11 +458,16 @@ export async function main() {
     );
     let outputPath = flags.out ? resolve(projectRoot, flags.out) : defaultPath;
 
-    const template = await readFile(templatePath, "utf8");
-    const replaced = template.replace(
-      /^#\s*TestCase:\s*.+$/m,
-      `# TestCase: ${testId}`,
-    );
+    let template: string;
+    try {
+      template = await readFile(templatePath, "utf8");
+    } catch (err: any) {
+      if (err?.code !== "ENOENT") throw err;
+      template = exampleTestcaseMarkdown();
+      if (!dryRun) {
+        await writeFile(templatePath, template, "utf8");
+      }
+    }
 
     if (flags.auto === "true") {
       const dir = resolve(outputPath, "..");
@@ -485,6 +494,15 @@ export async function main() {
         // continue
       }
     }
+
+    if (!hasTestId) {
+      testId = basename(outputPath).replace(/\.md$/i, "");
+    }
+
+    const replaced = template.replace(
+      /^#\s*TestCase:\s*.+$/m,
+      `# TestCase: ${testId}`,
+    );
 
     if (!dryRun) {
       await writeFile(outputPath, replaced, "utf8");
