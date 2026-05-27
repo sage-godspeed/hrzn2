@@ -8,8 +8,9 @@ import { loadProvider } from "./llm/loadProvider.ts";
 import { resolvePolicy } from "./policy/policyEngine.ts";
 import { runE2E } from "./e2e/index.ts";
 import { synthesizeTest } from "./synthesizer/index.ts";
+import { healLoop } from "./heal/healLoop.ts";
 
-type Command = "init" | "run" | "test" | "synth";
+type Command = "init" | "run" | "test" | "synth" | "heal";
 
 function usage(agentName: string) {
   return [
@@ -20,6 +21,7 @@ function usage(agentName: string) {
     `  ${agentName} run <testcase.md> [--projectRoot <dir>] [--config <path>]`,
     `  ${agentName} synth <TEST_ID|testcase.md> [--projectRoot <dir>] [--config <path>] [--overwrite]`,
     `  ${agentName} test <TEST_ID|testcase.md> [--projectRoot <dir>] [--config <path>] [--headed] [--retries N]`,
+    `  ${agentName} heal <TEST_ID|testcase.md> [--projectRoot <dir>] [--config <path>]`,
     "",
     "Flags:",
     "  --projectRoot <dir>   Run against another repo/project root",
@@ -70,7 +72,7 @@ export async function main() {
 
   const cmd = (positional[0] ?? "") as Command;
 
-  if (!cmd || (cmd !== "init" && cmd !== "run" && cmd !== "test" && cmd !== "synth")) {
+  if (!cmd || (cmd !== "init" && cmd !== "run" && cmd !== "test" && cmd !== "synth" && cmd !== "heal")) {
     process.stderr.write(usage(agentName) + "\n");
     process.exit(2);
   }
@@ -133,6 +135,12 @@ export async function main() {
     const overwrite = flags.overwrite === "true";
     const result = await synthesizeTest(config, spec, { overwrite });
     process.stdout.write(result.wrote ? `Synthesized: ${result.outPath}\n` : `Skipped (exists): ${result.outPath}\n`);
+    return;
+  }
+
+  if (cmd === "heal") {
+    const { finalEvidence, iterations } = await healLoop({ config, spec, policy: resolved.policy, llm });
+    process.stdout.write(finalEvidence.failingTests.length ? `Heal: FAIL after ${iterations}\n` : `Heal: PASS after ${iterations}\n`);
     return;
   }
 
