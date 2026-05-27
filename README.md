@@ -141,3 +141,15 @@ Alternative (dev linking):
 
 - `npm link` (in this folder)
 - `npm link hrzn` (in the target project)
+
+### Publish to npm
+
+1) Set `private` to `false` in `package.json`.
+2) Log in and publish:
+
+```bash
+npm login
+npm publish --access public
+```
+
+If you plan to publish under a scope, update `name` in `package.json` to `@scope/hrzn` first.
