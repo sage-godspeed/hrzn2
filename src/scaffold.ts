@@ -18,8 +18,14 @@ export async function ensureProjectScaffold(config: AgentConfig): Promise<void> 
   await mkdir(resolve(config.paths.artifactsDir), { recursive: true });
   await mkdir(resolve(dirname(config.paths.graphChangelogPath)), { recursive: true });
 
-  const examplePath = resolve(config.paths.testcasesDir, "AUTH-LOGIN-001.md");
-  if (!(await exists(examplePath))) {
-    await writeFile(examplePath, exampleTestcaseMarkdown(), "utf8");
+  const templatePath = resolve(config.paths.testcasesDir, "TEMPLATE.md");
+  if (!(await exists(templatePath))) {
+    let template = exampleTestcaseMarkdown();
+    template = template.replace(/^#\s*TestCase:\s*.+$/m, "# TestCase: TEMPLATE");
+    template = template.replace(
+      /##\s*Title\s*\n([^\n]*)/m,
+      "## Title\nShort human-readable title",
+    );
+    await writeFile(templatePath, template, "utf8");
   }
 }

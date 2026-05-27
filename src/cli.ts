@@ -451,10 +451,11 @@ export async function main() {
       config.paths.testcasesDir,
       "TEMPLATE.md",
     );
+    const fileStem = testId.toLowerCase();
     const defaultPath = resolve(
       projectRoot,
       config.paths.testcasesDir,
-      `${testId}.md`,
+      `${fileStem}.md`,
     );
     let outputPath = flags.out ? resolve(projectRoot, flags.out) : defaultPath;
 
@@ -489,14 +490,14 @@ export async function main() {
     if (flags.auto === "true") {
       const dir = resolve(outputPath, "..");
       const base = outputPath.replace(/\.md$/i, "");
-      const pad2 = (value: number) => String(value).padStart(2, "0");
+      const pad3 = (value: number) => String(value).padStart(3, "0");
       let index = 1;
-      let candidate = outputPath;
+      let candidate = `${base}-${pad3(index)}.md`;
       while (true) {
         try {
           await access(candidate);
           index += 1;
-          candidate = `${base}-${pad2(index)}.md`;
+          candidate = `${base}-${pad3(index)}.md`;
         } catch {
           outputPath = candidate;
           break;
@@ -559,7 +560,10 @@ export async function main() {
             testcasePath.includes("/") ||
             testcasePath.includes("\\")
               ? testcasePath
-              : resolve(config.paths.testcasesDir, `${testcasePath}.md`);
+              : resolve(
+                  config.paths.testcasesDir,
+                  `${testcasePath.toLowerCase()}.md`,
+                );
           const abs = resolve(projectRoot, normalized);
           return [{ id: "", path: abs, md: "" }];
         })();
