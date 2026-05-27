@@ -9,6 +9,7 @@ import { resolvePolicy } from "./policy/policyEngine.ts";
 import { runE2E } from "./e2e/index.ts";
 import { synthesizeTest } from "./synthesizer/index.ts";
 import { healLoop } from "./heal/healLoop.ts";
+import { writeRunReport } from "./report/runReport.ts";
 
 type Command = "init" | "run" | "test" | "synth" | "heal";
 
@@ -28,7 +29,9 @@ function usage(agentName: string) {
     "  --config <path>       Path to agent.config.json (defaults to <projectRoot>/agent.config.json)",
     "  --overwrite           Overwrite generated test file (synth)",
     "  --headed              Run browser headed (Playwright)",
-    "  --retries N            Retries for failing tests (Playwright)"
+    "  --retries N            Retries for failing tests (Playwright)",
+    "  --ci                  CI mode (non-interactive exit codes)",
+    "  --report <path>       Write run report JSON"
   ].join("\n");
 }
 
@@ -55,6 +58,14 @@ function parseFlags(argv: string[]) {
     }
     if (a === "--overwrite") {
       flags.overwrite = "true";
+      continue;
+    }
+    if (a === "--ci") {
+      flags.ci = "true";
+      continue;
+    }
+    if (a === "--report") {
+      flags.report = argv[++i] ?? "";
       continue;
     }
     positional.push(a);
@@ -135,6 +146,16 @@ export async function main() {
     const overwrite = flags.overwrite === "true";
     const result = await synthesizeTest(config, spec, { overwrite });
     process.stdout.write(result.wrote ? `Synthesized: ${result.outPath}\n` : `Skipped (exists): ${result.outPath}\n`);
+    if (flags.report) {
+      await writeRunReport(flags.report, {
+        timestamp: new Date().toISOString(),
+        command: "synth",
+        testcaseId: spec.id,
+        status: "pass",
+        policySource: resolved.policy.source,
+        llmProvider: llm.name
+      });
+    }
     return;
   }
 
@@ -159,6 +180,20 @@ export async function main() {
     }
 
     process.stdout.write(finalEvidence.failingTests.length ? `Heal: FAIL after ${iterations}\n` : `Heal: PASS after ${iterations}\n`);
+    if (flags.report) {
+      await writeRunReport(flags.report, {
+        timestamp: new Date().toISOString(),
+        command: "heal",
+        testcaseId: spec.id,
+        runner: config.defaultRunner,
+        status: finalEvidence.failingTests.length ? "fail" : "pass",
+        iterations,
+        policySource: resolved.policy.source,
+        llmProvider: llm.name,
+        artifacts: finalEvidence.artifacts
+      });
+    }
+    if (flags.ci === "true") process.exit(finalEvidence.failingTests.length ? 1 : 0);
     return;
   }
 
@@ -174,6 +209,19 @@ export async function main() {
   });
 
   process.stdout.write(evidence.failingTests.length ? "E2E: FAIL\n" : "E2E: PASS\n");
+  if (flags.report) {
+    await writeRunReport(flags.report, {
+      timestamp: new Date().toISOString(),
+      command: "test",
+      testcaseId: spec.id,
+      runner: config.defaultRunner,
+      status: evidence.failingTests.length ? "fail" : "pass",
+      policySource: resolved.policy.source,
+      llmProvider: llm.name,
+      artifacts: evidence.artifacts
+    });
+  }
+  if (flags.ci === "true") process.exit(evidence.failingTests.length ? 1 : 0);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
