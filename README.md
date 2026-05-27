@@ -32,8 +32,10 @@ If the config is elsewhere:
 - `node bin/hrzn2.js run AUTH-LOGIN-001 --projectRoot /path/to/project --config /path/to/project/agent.config.json`
 
 When the config file does not exist, hrzn will create a default `agent.config.json` at the target root during `init`.
+`init` creates `testcases/TEMPLATE.md` and no example testcase file.
 If `testcases/TEMPLATE.md` is missing or missing required sections, `hrzn template` uses the built-in example and writes `TEMPLATE.md`.
-When `--auto` is used, the test ID and Title are aligned to the final numbered filename (two-digit suffixes).
+When `--auto` is used, the test ID and Title are aligned to the final numbered filename (three-digit suffixes, starting at 001).
+Generated testcase filenames are lowercased by default.
 
 ## Install runner dependencies
 
