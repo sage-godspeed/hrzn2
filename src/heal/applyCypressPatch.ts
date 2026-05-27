@@ -7,26 +7,17 @@ function escapeRegExp(s: string) {
 
 function locatorExpression(strategy: string, value: unknown): string | null {
   if (!strategy) return null;
-  if (strategy === "testid")
-    return `page.getByTestId(${JSON.stringify(String(value))})`;
+  if (strategy === "testid") {
+    return `cy.get(${JSON.stringify(`[data-testid=\"${String(value)}\"]`)})`;
+  }
   if (strategy === "text")
-    return `page.getByText(${JSON.stringify(String(value))})`;
+    return `cy.contains(${JSON.stringify(String(value))})`;
   if (strategy === "label")
-    return `page.getByLabel(${JSON.stringify(String(value))})`;
-  if (strategy === "css")
-    return `page.locator(${JSON.stringify(String(value))})`;
-  if (strategy === "xpath")
-    return `page.locator(${JSON.stringify(String(value))})`;
+    return `cy.contains('label', ${JSON.stringify(String(value))})`;
+  if (strategy === "css" || strategy === "xpath")
+    return `cy.get(${JSON.stringify(String(value))})`;
   if (strategy === "role") {
-    if (value && typeof value === "object") {
-      const role = String((value as any).role ?? "button");
-      const name =
-        (value as any).name != null ? String((value as any).name) : "";
-      return name
-        ? `page.getByRole(${JSON.stringify(role)}, { name: ${JSON.stringify(name)} })`
-        : `page.getByRole(${JSON.stringify(role)})`;
-    }
-    return `page.getByRole("button", { name: ${JSON.stringify(String(value))} })`;
+    return `cy.contains(${JSON.stringify(String(value))})`;
   }
   return null;
 }
@@ -36,7 +27,7 @@ function replaceLocator(
   from: any,
   to: any,
 ): { next: string; applied: number } {
-  const fromStrategy = String(from?.strategy ?? "role");
+  const fromStrategy = String(from?.strategy ?? "text");
   const fromValue = from?.value ?? from?.name ?? from?.text ?? "";
   const toStrategy = String(to?.strategy ?? "");
   const toValue = to?.value ?? to?.name ?? to?.text ?? "";
@@ -49,39 +40,28 @@ function replaceLocator(
   if (fromStrategy === "testid") {
     patterns.push(
       new RegExp(
-        `page\\.getByTestId\\(\\s*["']${escapeRegExp(String(fromValue))}["']\\s*\\)`,
+        `cy\\.get\\(\\s*["']\\[data-testid=\\"${escapeRegExp(String(fromValue))}\\"\\]["']\\s*\\)`,
         "g",
       ),
     );
-  } else if (fromStrategy === "text") {
+  } else if (fromStrategy === "text" || fromStrategy === "role") {
     patterns.push(
       new RegExp(
-        `page\\.getByText\\(\\s*["']${escapeRegExp(String(fromValue))}["']\\s*\\)`,
+        `cy\\.contains\\(\\s*["']${escapeRegExp(String(fromValue))}["']\\s*\\)`,
         "g",
       ),
     );
   } else if (fromStrategy === "label") {
     patterns.push(
       new RegExp(
-        `page\\.getByLabel\\(\\s*["']${escapeRegExp(String(fromValue))}["']\\s*\\)`,
+        `cy\\.contains\\(\\s*["']label["']\\s*,\\s*["']${escapeRegExp(String(fromValue))}["']\\s*\\)`,
         "g",
       ),
     );
   } else if (fromStrategy === "css" || fromStrategy === "xpath") {
     patterns.push(
       new RegExp(
-        `page\\.locator\\(\\s*["']${escapeRegExp(String(fromValue))}["']\\s*\\)`,
-        "g",
-      ),
-    );
-  } else if (fromStrategy === "role") {
-    const role = String(from?.role ?? "button");
-    const name = String(from?.name ?? fromValue ?? "");
-    patterns.push(
-      new RegExp(
-        `page\\.getByRole\\(\\s*["']${escapeRegExp(role)}["']\\s*,\\s*\\{\\s*name:\\s*["']${escapeRegExp(
-          name,
-        )}["']\\s*\\}\\s*\\)`,
+        `cy\\.get\\(\\s*["']${escapeRegExp(String(fromValue))}["']\\s*\\)`,
         "g",
       ),
     );
@@ -114,7 +94,7 @@ function insertOnce(
   return { next, applied: 1 };
 }
 
-export async function applyPlaywrightPatch(
+export async function applyCypressPatch(
   testFilePath: string,
   plan: PatchPlan,
   options?: { dryRun?: boolean },
@@ -135,8 +115,8 @@ export async function applyPlaywrightPatch(
       const ms = Number(
         (change.to as any)?.ms ?? (change.to as any)?.timeout ?? 1000,
       );
-      const line = `  await page.waitForTimeout(${Number.isFinite(ms) ? ms : 1000});`;
-      const res = insertOnce(src, line, /test\(.*?\{\s*$/m);
+      const line = `    cy.wait(${Number.isFinite(ms) ? ms : 1000});`;
+      const res = insertOnce(src, line, /it\(.*?\{\s*$/m);
       if (res.next !== src) {
         src = res.next;
         applied += res.applied;
@@ -144,9 +124,8 @@ export async function applyPlaywrightPatch(
       continue;
     }
     if (change.type === "flow_popups") {
-      const line =
-        '  page.on("dialog", async (dialog) => { await dialog.dismiss(); });';
-      const res = insertOnce(src, line, /test\(.*?\{\s*$/m);
+      const line = "    cy.on('window:confirm', () => false);";
+      const res = insertOnce(src, line, /it\(.*?\{\s*$/m);
       if (res.next !== src) {
         src = res.next;
         applied += res.applied;

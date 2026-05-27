@@ -7,20 +7,30 @@ import type { PatchPlan } from "./patchPlan.ts";
 import { validatePatchPlan } from "./validatePlan.ts";
 import type { SafePolicy } from "../policy/types.ts";
 import { applyPlaywrightPatch } from "./applyPlaywrightPatch.ts";
+import { applyCypressPatch } from "./applyCypressPatch.ts";
 import { resolve } from "node:path";
+import { access } from "node:fs/promises";
 
 function patchPlanSchema(): Record<string, unknown> {
   return {
     type: "object",
-    required: ["testId", "classification", "confidence", "runner", "changes", "rerun"],
+    required: [
+      "testId",
+      "classification",
+      "confidence",
+      "runner",
+      "changes",
+      "rerun",
+    ],
     properties: {
       testId: { type: "string" },
       classification: { type: "string" },
       confidence: { type: "number" },
       runner: { type: "string" },
       changes: { type: "array" },
-      rerun: { type: "object" }
-    }
+      rerun: { type: "object" },
+      specUpdate: { type: "object" },
+    },
   };
 }
 
@@ -30,6 +40,7 @@ export async function healOnce(input: {
   policy: SafePolicy;
   llm: { structured: <T>(req: any) => Promise<T> };
   evidence: Evidence;
+  dryRun?: boolean;
 }): Promise<{ applied: number; plan: PatchPlan }> {
   const failMsg = input.evidence.failingTests[0]?.errorMessage ?? "";
   const classification = classifyFailure(failMsg);
@@ -37,6 +48,7 @@ export async function healOnce(input: {
   const prompt = [
     "You are an E2E test healing assistant.",
     "Return a JSON PatchPlan for updating the test to match the UI change WITHOUT weakening product requirements.",
+    "If the testcase.md should be updated, set specUpdate.required=true and include proposedEdits entries with {section, op, path, value, index}.",
     "",
     `TestId: ${input.spec.id}`,
     `Title: ${input.spec.title}`,
@@ -46,18 +58,27 @@ export async function healOnce(input: {
     JSON.stringify(input.spec, null, 2),
     "",
     "Failure evidence excerpt:",
-    failMsg.slice(-2000)
+    failMsg.slice(-2000),
   ].join("\n");
 
   const plan = (await input.llm.structured<PatchPlan>({
     input: prompt,
-    schema: patchPlanSchema()
+    schema: patchPlanSchema(),
   })) as PatchPlan;
 
   validatePatchPlan(input.policy, plan);
 
-  const testFilePath = resolve(input.config.projectRoot, "e2e", "tests", `${input.spec.id}.spec.ts`);
-  const res = await applyPlaywrightPatch(testFilePath, plan);
+  const testFilePath = await resolveTestFilePath(
+    input.config.projectRoot,
+    input.spec.id,
+    plan.runner,
+  );
+  const res =
+    plan.runner === "cypress"
+      ? await applyCypressPatch(testFilePath, plan, { dryRun: input.dryRun })
+      : await applyPlaywrightPatch(testFilePath, plan, {
+          dryRun: input.dryRun,
+        });
   return { applied: res.applied, plan };
 }
 
@@ -66,18 +87,73 @@ export async function healLoop(input: {
   spec: TestcaseSpec;
   policy: SafePolicy;
   llm: { structured: <T>(req: any) => Promise<T> };
-}): Promise<{ finalEvidence: Evidence; iterations: number; plans: PatchPlan[] }> {
+  dryRun?: boolean;
+}): Promise<{
+  finalEvidence: Evidence;
+  iterations: number;
+  plans: PatchPlan[];
+}> {
   let iterations = 0;
   const plans: PatchPlan[] = [];
-  let evidence = await runE2E(input.config, { testId: input.spec.id, retries: 0 });
+  if (input.dryRun) {
+    return {
+      finalEvidence: {
+        startedAt: new Date().toISOString(),
+        finishedAt: new Date().toISOString(),
+        runner: input.config.defaultRunner,
+        runId: "dry-run",
+        artifacts: {},
+        failingTests: [],
+      },
+      iterations: 0,
+      plans: [],
+    };
+  }
 
-  while (evidence.failingTests.length && iterations < input.policy.maxHealIterations) {
+  let evidence = await runE2E(input.config, {
+    testId: input.spec.id,
+    retries: 0,
+  });
+
+  while (
+    evidence.failingTests.length &&
+    iterations < input.policy.maxHealIterations
+  ) {
     iterations++;
-    const healed = await healOnce({ ...input, evidence });
+    const healed = await healOnce({ ...input, evidence, dryRun: input.dryRun });
     if (healed.applied <= 0) break;
     plans.push(healed.plan);
-    evidence = await runE2E(input.config, { testId: input.spec.id, retries: 0 });
+    evidence = await runE2E(input.config, {
+      testId: input.spec.id,
+      retries: 0,
+    });
   }
 
   return { finalEvidence: evidence, iterations, plans };
+}
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function resolveTestFilePath(
+  projectRoot: string,
+  testId: string,
+  runner: string,
+): Promise<string> {
+  if (runner === "cypress") {
+    const candidates = [
+      resolve(projectRoot, "cypress", "e2e", `${testId}.cy.ts`),
+      resolve(projectRoot, "cypress", "e2e", `${testId}.cy.js`),
+      resolve(projectRoot, "cypress", "integration", `${testId}.spec.ts`),
+      resolve(projectRoot, "cypress", "integration", `${testId}.spec.js`),
+    ];
+    for (const c of candidates) if (await exists(c)) return c;
+  }
+  return resolve(projectRoot, "e2e", "tests", `${testId}.spec.ts`);
 }

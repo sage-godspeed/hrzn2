@@ -3,8 +3,8 @@ import type { FailureClass } from "../e2e/e2eRunner.js";
 
 export type HealChangeType =
   | "selector_update"
-  | "timing_wait"
-  | "flow_popup_handler"
+  | "timing_waits"
+  | "flow_popups"
   | "test_data_update"
   | "assertion_update";
 
@@ -23,6 +23,8 @@ export interface PatchPlan {
   runner: RunnerKind;
   changes: HealChange[];
   rerun: { scope: "single_test" | "suite"; runner: RunnerKind };
-  specUpdate?: { required: boolean; proposedEdits: Array<Record<string, unknown>> };
+  specUpdate?: {
+    required: boolean;
+    proposedEdits: Array<Record<string, unknown>>;
+  };
 }
-
