@@ -1,4 +1,8 @@
-import type { LLMGenerateRequest, LLMProvider, LLMStructuredRequest } from "../provider.ts";
+import type {
+  LLMGenerateRequest,
+  LLMProvider,
+  LLMStructuredRequest,
+} from "../provider.ts";
 
 function disabledError() {
   return new Error(

@@ -1,8 +1,12 @@
-import type { LLMGenerateRequest, LLMProvider, LLMStructuredRequest } from "../provider.ts";
+import type {
+  LLMGenerateRequest,
+  LLMProvider,
+  LLMStructuredRequest,
+} from "../provider.ts";
 import type { LLMProviderId } from "../../config.ts";
 
 function envOrEmpty(name: string) {
-  return (name && process.env[name]) ? String(process.env[name]) : "";
+  return name && process.env[name] ? String(process.env[name]) : "";
 }
 
 function defaultApiKeyEnv(provider: LLMProviderId): string {
@@ -31,11 +35,15 @@ function normalizeBaseUrl(baseUrl: string): string {
   return b.endsWith("/v1") ? b : `${b}/v1`;
 }
 
-async function postJson(url: string, headers: Record<string, string>, body: unknown): Promise<any> {
+async function postJson(
+  url: string,
+  headers: Record<string, string>,
+  body: unknown,
+): Promise<any> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
   const text = await res.text();
   let json: any;
@@ -57,7 +65,9 @@ function extractChatContent(resp: any): string {
   // Some servers return content parts:
   const parts = resp?.choices?.[0]?.message?.content;
   if (Array.isArray(parts)) {
-    return parts.map((p) => (typeof p?.text === "string" ? p.text : "")).join("");
+    return parts
+      .map((p) => (typeof p?.text === "string" ? p.text : ""))
+      .join("");
   }
   return "";
 }
@@ -70,7 +80,7 @@ function asJsonFromText<T>(text: string): T {
   } catch {
     // Attempt to extract the first JSON object/array substring.
     const start = Math.min(
-      ...[trimmed.indexOf("{"), trimmed.indexOf("[")].filter((x) => x >= 0)
+      ...[trimmed.indexOf("{"), trimmed.indexOf("[")].filter((x) => x >= 0),
     );
     if (!Number.isFinite(start)) throw new Error("Model did not return JSON.");
     const sub = trimmed.slice(start);
@@ -97,16 +107,24 @@ export function createOpenAICompatProvider(input: {
 
   const model = input.model || "";
 
-  async function chat(system: string | undefined, user: string, temperature?: number): Promise<string> {
+  async function chat(
+    system: string | undefined,
+    user: string,
+    temperature?: number,
+  ): Promise<string> {
     const messages: Array<{ role: "system" | "user"; content: string }> = [];
     if (system) messages.push({ role: "system", content: system });
     messages.push({ role: "user", content: user });
     const payload = {
       model: model || undefined,
       messages,
-      temperature: temperature ?? 0.2
+      temperature: temperature ?? 0.2,
     };
-    const resp = await postJson(`${baseUrl}/chat/completions`, headers, payload);
+    const resp = await postJson(
+      `${baseUrl}/chat/completions`,
+      headers,
+      payload,
+    );
     const out = extractChatContent(resp);
     if (!out) throw new Error("LLM returned empty content.");
     return out;
@@ -120,15 +138,15 @@ export function createOpenAICompatProvider(input: {
     async structured<T>(req: LLMStructuredRequest<T>): Promise<T> {
       const system = [
         req.system ?? "",
-        "Return ONLY valid JSON. No markdown. No backticks. No commentary."
+        "Return ONLY valid JSON. No markdown. No backticks. No commentary.",
       ]
         .filter(Boolean)
         .join("\n");
       const text = await chat(system, req.input, req.temperature);
       const parsed = asJsonFromText<T>(text);
-      if (req.validate && !req.validate(parsed)) throw new Error("Structured output failed validation.");
+      if (req.validate && !req.validate(parsed))
+        throw new Error("Structured output failed validation.");
       return parsed;
-    }
+    },
   };
 }
-

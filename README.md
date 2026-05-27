@@ -144,8 +144,8 @@ Alternative (dev linking):
 
 ### Publish to npm
 
-1) Set `private` to `false` in `package.json`.
-2) Log in and publish:
+1. Set `private` to `false` in `package.json`.
+2. Log in and publish:
 
 ```bash
 npm login

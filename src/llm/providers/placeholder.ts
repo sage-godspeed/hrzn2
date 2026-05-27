@@ -1,4 +1,8 @@
-import type { LLMProvider, LLMGenerateRequest, LLMStructuredRequest } from "../provider.ts";
+import type {
+  LLMProvider,
+  LLMGenerateRequest,
+  LLMStructuredRequest,
+} from "../provider.ts";
 import type { LLMProviderId } from "../../config.ts";
 
 const PROVIDER_ENV_DEFAULTS: Record<LLMProviderId, string> = {
@@ -9,15 +13,19 @@ const PROVIDER_ENV_DEFAULTS: Record<LLMProviderId, string> = {
   qwen: "QWEN_API_KEY",
   kimi: "KIMI_API_KEY",
   llama: "LLAMA_API_KEY",
-  none: ""
+  none: "",
 };
 
-export function createPlaceholderProvider(input: { provider: LLMProviderId; model: string; apiKeyEnv: string }): LLMProvider {
+export function createPlaceholderProvider(input: {
+  provider: LLMProviderId;
+  model: string;
+  apiKeyEnv: string;
+}): LLMProvider {
   const apiKeyEnv = input.apiKeyEnv || PROVIDER_ENV_DEFAULTS[input.provider];
   const suffix = [
     `Provider: ${input.provider}`,
     input.model ? `Model: ${input.model}` : "Model: (not set)",
-    apiKeyEnv ? `API key env: ${apiKeyEnv}` : "API key env: (not set)"
+    apiKeyEnv ? `API key env: ${apiKeyEnv}` : "API key env: (not set)",
   ].join("\n");
 
   const err = () =>
@@ -32,8 +40,8 @@ export function createPlaceholderProvider(input: { provider: LLMProviderId; mode
         "",
         "Then export the API key in your shell/CI.",
         "",
-        suffix
-      ].join("\n")
+        suffix,
+      ].join("\n"),
     );
 
   return {
@@ -43,7 +51,6 @@ export function createPlaceholderProvider(input: { provider: LLMProviderId; mode
     },
     async structured<T>(_req: LLMStructuredRequest<T>): Promise<T> {
       throw err();
-    }
+    },
   };
 }
-
