@@ -14,6 +14,7 @@ Use this file to keep shared context for work in this repo. Keep entries short a
 - Exposed hrzn2 CLI name alongside hrzn.
 - Documented config auto-creation, CLI names, and native adapter notes.
 - Allowed template without TEST_ID and added default template fallback.
+- Template now resets to the built-in example if required sections are missing.
 
 ## Pending work
 
