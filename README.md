@@ -35,18 +35,21 @@ When the config file does not exist, hrzn will create a default `agent.config.js
 `init` creates `testcases/TEMPLATE.md` and no example testcase file.
 If `testcases/TEMPLATE.md` is missing or missing required sections, `hrzn template` uses the built-in example and writes `TEMPLATE.md`.
 When `--auto` is used, the test ID and Title are aligned to the final numbered filename (three-digit suffixes, starting at 001).
+When the provided ID already ends with a three-digit suffix, `--auto` avoids double-appending it.
 Generated testcase filenames are lowercased by default.
 
 ## Install runner dependencies
 
 - `hrzn install --runner playwright --with-browsers`
+- `hrzn install --runner playwright --browsers chromium,firefox`
 - `hrzn install --runner cypress`
 
 ## CLI reference
 
 - `hrzn init [--projectRoot <dir>] [--config <path>]`
-- `hrzn run <testcase.md|TEST_ID> [--projectRoot <dir>] [--config <path>]`
-- `hrzn install [--runner <playwright|cypress|both>] [--packageManager <npm|pnpm|yarn>] [--with-browsers]`
+- `hrzn run <testcase.md|TEST_ID> [--projectRoot <dir>] [--config <path>] [--all] [--suite <name>]`
+- `hrzn rerun`
+- `hrzn install [--runner <playwright|cypress|both>] [--packageManager <npm|pnpm|yarn>] [--with-browsers] [--browsers <list>]`
 - `hrzn template [TEST_ID] [--out <path>] [--overwrite] [--auto]`
 - `hrzn synth <TEST_ID|testcase.md> [--overwrite] [--dry-run] [--report <path>] [--patch <path>]`
 - `hrzn test <TEST_ID|testcase.md> [--suite <name> | --all] [--headed] [--retries N] [--dry-run] [--report <path>]`
@@ -56,6 +59,7 @@ Notes:
 
 - `--ci` prints a JSON report and uses non-zero exit codes on failures.
 - Healing can propose testcase updates. If policy requires approval, hrzn writes a JSON file and exits in CI. Apply with `--approve <path>`.
+- `rerun` replays the last test/heal/synth run using `e2e/artifacts/last-run.json`.
 
 ## Configure AI provider
 
