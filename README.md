@@ -91,10 +91,16 @@ If the other project keeps its config elsewhere:
 
 - `hrzn init [--projectRoot <dir>] [--config <path>]`
 - `hrzn run <testcase.md|TEST_ID> [--projectRoot <dir>] [--config <path>]`
+- `hrzn install [--runner <playwright|cypress|both>] [--packageManager <npm|pnpm|yarn>] [--with-browsers]`
 - `hrzn template <TEST_ID> [--out <path>] [--overwrite] [--auto]`
 - `hrzn synth <TEST_ID|testcase.md> [--overwrite] [--dry-run] [--report <path>] [--patch <path>]`
 - `hrzn test <TEST_ID|testcase.md> [--suite <name> | --all] [--headed] [--retries N] [--dry-run] [--report <path>]`
 - `hrzn heal <TEST_ID|testcase.md> [--suite <name> | --all] [--dry-run] [--report <path>] [--patch <path>] [--approve <path>]`
+
+Install runner dependencies in a target project:
+
+- `hrzn install --runner playwright --with-browsers`
+- `hrzn install --runner cypress`
 
 Spec updates:
 

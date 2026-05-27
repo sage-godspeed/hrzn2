@@ -13,7 +13,7 @@ import { healLoop } from "./heal/healLoop.ts";
 import { writeRunReport } from "./report/runReport.ts";
 import { applySpecEditsToMarkdown, type SpecEdit } from "./spec/update.ts";
 
-type Command = "init" | "run" | "test" | "synth" | "heal" | "template";
+type Command = "init" | "run" | "test" | "synth" | "heal" | "template" | "install";
 
 function usage(agentName: string) {
   return [
@@ -22,6 +22,7 @@ function usage(agentName: string) {
     "Usage:",
     `  ${agentName} init [--projectRoot <dir>] [--config <path>]`,
     `  ${agentName} run <testcase.md> [--projectRoot <dir>] [--config <path>]`,
+    `  ${agentName} install [--runner <playwright|cypress|both>] [--packageManager <npm|pnpm|yarn>] [--with-browsers]`,
     `  ${agentName} template <TEST_ID> [--out <path>] [--overwrite]`,
     `  ${agentName} synth <TEST_ID|testcase.md> [--projectRoot <dir>] [--config <path>] [--overwrite]`,
     `  ${agentName} test <TEST_ID|testcase.md> [--projectRoot <dir>] [--config <path>] [--headed] [--retries N]`,
@@ -42,6 +43,9 @@ function usage(agentName: string) {
     "  --suite <name>         Run or heal a suite",
     "  --all                 Run or heal all testcases",
     "  --approve <path>      Apply approved spec update JSON",
+    "  --runner <name>       Runner for install (playwright|cypress|both)",
+    "  --packageManager <n>  Package manager for install (npm|pnpm|yarn)",
+    "  --with-browsers       Install Playwright browsers (install command)",
   ].join("\n");
 }
 
@@ -106,6 +110,18 @@ function parseFlags(argv: string[]) {
       flags.approve = argv[++i] ?? "";
       continue;
     }
+    if (a === "--runner") {
+      flags.runner = argv[++i] ?? "";
+      continue;
+    }
+    if (a === "--packageManager") {
+      flags.packageManager = argv[++i] ?? "";
+      continue;
+    }
+    if (a === "--with-browsers") {
+      flags.withBrowsers = "true";
+      continue;
+    }
     positional.push(a);
   }
   return { flags, positional };
@@ -147,6 +163,39 @@ async function writePatchFile(path: string, cwd: string) {
 
 function emitCiReport(report: Record<string, unknown>) {
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+}
+
+function runCommand(cmd: string, args: string[], cwd: string): number {
+  const res = spawnSync(cmd, args, { cwd, stdio: "inherit" });
+  return res.status ?? 1;
+}
+
+async function resolvePackageManager(
+  projectRoot: string,
+  raw: string | undefined,
+): Promise<"npm" | "pnpm" | "yarn"> {
+  const normalized = (raw ?? "").trim().toLowerCase();
+  if (normalized === "npm" || normalized === "pnpm" || normalized === "yarn") {
+    return normalized;
+  }
+  if (await exists(resolve(projectRoot, "pnpm-lock.yaml"))) return "pnpm";
+  if (await exists(resolve(projectRoot, "yarn.lock"))) return "yarn";
+  return "npm";
+}
+
+function installCommand(
+  pkg: "npm" | "pnpm" | "yarn",
+  deps: string[],
+) {
+  if (pkg === "pnpm") return { cmd: "pnpm", args: ["add", "-D", ...deps] };
+  if (pkg === "yarn") return { cmd: "yarn", args: ["add", "-D", ...deps] };
+  return { cmd: "npm", args: ["install", "-D", ...deps] };
+}
+
+function playwrightBrowserInstallCommand(pkg: "npm" | "pnpm" | "yarn") {
+  if (pkg === "pnpm") return { cmd: "pnpm", args: ["exec", "playwright", "install"] };
+  if (pkg === "yarn") return { cmd: "yarn", args: ["playwright", "install"] };
+  return { cmd: "npx", args: ["playwright", "install"] };
 }
 
 async function loadSpecs(projectRoot: string, testcasesDir: string) {
@@ -303,6 +352,7 @@ export async function main() {
     !cmd ||
     (cmd !== "init" &&
       cmd !== "run" &&
+      cmd !== "install" &&
       cmd !== "test" &&
       cmd !== "synth" &&
       cmd !== "heal" &&
@@ -310,6 +360,42 @@ export async function main() {
   ) {
     process.stderr.write(usage(agentName) + "\n");
     process.exit(2);
+  }
+
+  if (cmd === "install") {
+    const runnerRaw = (flags.runner || "").trim().toLowerCase();
+    const runner = runnerRaw || config.defaultRunner;
+    if (runner !== "playwright" && runner !== "cypress" && runner !== "both") {
+      process.stderr.write("install --runner must be playwright, cypress, or both.\n");
+      process.exit(2);
+    }
+
+    const pkg = await resolvePackageManager(projectRoot, flags.packageManager);
+    const withBrowsers = flags.withBrowsers === "true";
+    const targets = runner === "both" ? ["playwright", "cypress"] : [runner];
+
+    const commands: Array<{ cmd: string; args: string[] }> = [];
+    if (targets.includes("playwright")) {
+      commands.push(installCommand(pkg, ["@playwright/test"]));
+      if (withBrowsers) commands.push(playwrightBrowserInstallCommand(pkg));
+    }
+    if (targets.includes("cypress")) {
+      commands.push(installCommand(pkg, ["cypress"]));
+    }
+
+    if (dryRun) {
+      for (const c of commands) {
+        process.stdout.write(`Dry-run: ${c.cmd} ${c.args.join(" ")}\n`);
+      }
+      return;
+    }
+
+    for (const c of commands) {
+      const code = runCommand(c.cmd, c.args, projectRoot);
+      if (code !== 0) process.exit(code);
+    }
+    process.stdout.write("Install complete.\n");
+    return;
   }
 
   if (!dryRun) await ensureProjectScaffold(config);
