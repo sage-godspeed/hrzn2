@@ -119,6 +119,27 @@
       "props": {
         "runner": "playwright"
       }
+    },
+    {
+      "id": "run:2026-05-27T08:11:30.715Z",
+      "type": "Run",
+      "props": {
+        "runner": "playwright"
+      }
+    },
+    {
+      "id": "run:2026-05-27T08:14:58.683Z",
+      "type": "Run",
+      "props": {
+        "runner": "playwright"
+      }
+    },
+    {
+      "id": "run:2026-05-27T08:15:26.985Z",
+      "type": "Run",
+      "props": {
+        "runner": "playwright"
+      }
     }
   ],
   "edges": [
@@ -174,6 +195,21 @@
     },
     {
       "from": "run:2026-05-27T08:09:29.365Z",
+      "to": "tc:AUTH-LOGIN-001",
+      "type": "RAN"
+    },
+    {
+      "from": "run:2026-05-27T08:11:30.715Z",
+      "to": "tc:AUTH-LOGIN-001",
+      "type": "RAN"
+    },
+    {
+      "from": "run:2026-05-27T08:14:58.683Z",
+      "to": "tc:AUTH-LOGIN-001",
+      "type": "RAN"
+    },
+    {
+      "from": "run:2026-05-27T08:15:26.985Z",
       "to": "tc:AUTH-LOGIN-001",
       "type": "RAN"
     }
@@ -301,6 +337,36 @@
     {
       "id": "evt:run:2026-05-27T08:09:29.365Z",
       "runNodeId": "run:2026-05-27T08:09:29.365Z",
+      "summary": "Parsed testcase AUTH-LOGIN-001",
+      "artifacts": {
+        "policySource": "merged",
+        "agentsMd": null
+      },
+      "changes": []
+    },
+    {
+      "id": "evt:run:2026-05-27T08:11:30.715Z",
+      "runNodeId": "run:2026-05-27T08:11:30.715Z",
+      "summary": "Parsed testcase AUTH-LOGIN-001",
+      "artifacts": {
+        "policySource": "merged",
+        "agentsMd": null
+      },
+      "changes": []
+    },
+    {
+      "id": "evt:run:2026-05-27T08:14:58.683Z",
+      "runNodeId": "run:2026-05-27T08:14:58.683Z",
+      "summary": "Parsed testcase AUTH-LOGIN-001",
+      "artifacts": {
+        "policySource": "merged",
+        "agentsMd": null
+      },
+      "changes": []
+    },
+    {
+      "id": "evt:run:2026-05-27T08:15:26.985Z",
+      "runNodeId": "run:2026-05-27T08:15:26.985Z",
       "summary": "Parsed testcase AUTH-LOGIN-001",
       "artifacts": {
         "policySource": "merged",

@@ -57,7 +57,17 @@ function parseInlineValue(raw: string): unknown {
     try {
       return JSON.parse(v);
     } catch {
-      return v;
+      // Try a relaxed JSON conversion for common testcase.md shapes like:
+      // { field: "Email", value: "{{user.email}}" }
+      // { target: "Log in" }
+      try {
+        const relaxed = v
+          .replace(/'/g, '"')
+          .replace(/([,{]\s*)([A-Za-z0-9_.$-]+)\s*:/g, '$1"$2":');
+        return JSON.parse(relaxed);
+      } catch {
+        return v;
+      }
     }
   }
   if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
@@ -68,13 +78,28 @@ function parseInlineValue(raw: string): unknown {
 
 function parseDashKVMap(block: string): Record<string, unknown> {
   const out: Record<string, unknown> = {};
+  const setDeep = (obj: any, path: string[], value: unknown) => {
+    let cur = obj;
+    for (let i = 0; i < path.length; i++) {
+      const key = path[i]!;
+      if (i === path.length - 1) {
+        cur[key] = value;
+      } else {
+        if (cur[key] == null || typeof cur[key] !== "object") cur[key] = {};
+        cur = cur[key];
+      }
+    }
+  };
   for (const line of block.split("\n")) {
     const m = line.match(/^\s*-\s*([^:]+):\s*(.*)\s*$/);
     if (!m) continue;
     const k = m[1]!.trim();
     const raw = m[2]!.trim();
     if (!k) continue;
-    out[k] = parseInlineValue(raw);
+    const val = parseInlineValue(raw);
+    const parts = k.split(".").map((p) => p.trim()).filter(Boolean);
+    if (parts.length > 1) setDeep(out, parts, val);
+    else out[k] = val;
   }
   return out;
 }
@@ -201,4 +226,3 @@ export function parseTestcaseMarkdown(md: string): TestcaseSpec {
     healingPolicy
   };
 }
-

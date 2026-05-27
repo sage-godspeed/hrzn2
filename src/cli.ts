@@ -7,8 +7,9 @@ import { GraphChangelog } from "./graph/changelog.ts";
 import { loadProvider } from "./llm/loadProvider.ts";
 import { resolvePolicy } from "./policy/policyEngine.ts";
 import { runE2E } from "./e2e/index.ts";
+import { synthesizeTest } from "./synthesizer/index.ts";
 
-type Command = "init" | "run" | "test";
+type Command = "init" | "run" | "test" | "synth";
 
 function usage(agentName: string) {
   return [
@@ -17,11 +18,13 @@ function usage(agentName: string) {
     "Usage:",
     `  ${agentName} init [--projectRoot <dir>] [--config <path>]`,
     `  ${agentName} run <testcase.md> [--projectRoot <dir>] [--config <path>]`,
+    `  ${agentName} synth <TEST_ID|testcase.md> [--projectRoot <dir>] [--config <path>] [--overwrite]`,
     `  ${agentName} test <TEST_ID|testcase.md> [--projectRoot <dir>] [--config <path>] [--headed] [--retries N]`,
     "",
     "Flags:",
     "  --projectRoot <dir>   Run against another repo/project root",
     "  --config <path>       Path to agent.config.json (defaults to <projectRoot>/agent.config.json)",
+    "  --overwrite           Overwrite generated test file (synth)",
     "  --headed              Run browser headed (Playwright)",
     "  --retries N            Retries for failing tests (Playwright)"
   ].join("\n");
@@ -48,6 +51,10 @@ function parseFlags(argv: string[]) {
       flags.retries = argv[++i] ?? "";
       continue;
     }
+    if (a === "--overwrite") {
+      flags.overwrite = "true";
+      continue;
+    }
     positional.push(a);
   }
   return { flags, positional };
@@ -63,7 +70,7 @@ export async function main() {
 
   const cmd = (positional[0] ?? "") as Command;
 
-  if (!cmd || (cmd !== "init" && cmd !== "run" && cmd !== "test")) {
+  if (!cmd || (cmd !== "init" && cmd !== "run" && cmd !== "test" && cmd !== "synth")) {
     process.stderr.write(usage(agentName) + "\n");
     process.exit(2);
   }
@@ -119,6 +126,13 @@ export async function main() {
 
   if (cmd === "run") {
     process.stdout.write(`Next: implement runners + synthesizer; this scaffold currently parses + logs.\n`);
+    return;
+  }
+
+  if (cmd === "synth") {
+    const overwrite = flags.overwrite === "true";
+    const result = await synthesizeTest(config, spec, { overwrite });
+    process.stdout.write(result.wrote ? `Synthesized: ${result.outPath}\n` : `Skipped (exists): ${result.outPath}\n`);
     return;
   }
 
