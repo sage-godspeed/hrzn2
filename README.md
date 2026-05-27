@@ -32,7 +32,7 @@ If the config is elsewhere:
 - `node bin/hrzn2.js run AUTH-LOGIN-001 --projectRoot /path/to/project --config /path/to/project/agent.config.json`
 
 When the config file does not exist, hrzn will create a default `agent.config.json` at the target root during `init`.
-If `testcases/TEMPLATE.md` is missing, `hrzn template` uses the built-in example and writes `TEMPLATE.md`.
+If `testcases/TEMPLATE.md` is missing or missing required sections, `hrzn template` uses the built-in example and writes `TEMPLATE.md`.
 
 ## Install runner dependencies
 
