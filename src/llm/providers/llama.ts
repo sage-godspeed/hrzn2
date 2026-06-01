@@ -77,6 +77,7 @@ export function createLlamaProvider(input: {
     system: string | undefined,
     user: string,
     temperature?: number,
+    format?: any,
   ): Promise<string> {
     const messages: Array<{ role: "system" | "user"; content: string }> = [];
     if (system) messages.push({ role: "system", content: system });
@@ -89,6 +90,9 @@ export function createLlamaProvider(input: {
     };
     if (typeof temperature === "number") {
       payload.options = { temperature };
+    }
+    if (format) {
+      payload.format = format;
     }
 
     const resp = await postJson(`${baseUrl}/api/chat`, headers, payload);
@@ -111,7 +115,7 @@ export function createLlamaProvider(input: {
       ]
         .filter(Boolean)
         .join("\n");
-      const text = await chat(system, req.input, req.temperature);
+      const text = await chat(system, req.input, req.temperature, req.schema);
       const parsed = asJsonFromText<T>(text);
       if (req.validate && !req.validate(parsed))
         throw new Error("Structured output failed validation.");
