@@ -47,13 +47,13 @@ Generated testcase filenames are lowercased by default.
 ## CLI reference
 
 - `hrzn init [--projectRoot <dir>] [--config <path>]`
-- `hrzn run <testcase.md|TEST_ID> [--projectRoot <dir>] [--config <path>] [--all] [--suite <name>]`
+- `hrzn run <testcase.md|TEST_ID> [--projectRoot <dir>] [--config <path>] [--all] [--suite <name>] [--exclude <id>] [--exclude-tag <tag>] [--exclude-suite <name>]`
 - `hrzn rerun`
 - `hrzn install [--runner <playwright|cypress|both>] [--packageManager <npm|pnpm|yarn>] [--with-browsers] [--browsers <list>]`
 - `hrzn template [TEST_ID] [--out <path>] [--overwrite] [--auto]`
 - `hrzn synth <TEST_ID|testcase.md> [--overwrite] [--dry-run] [--report <path>] [--patch <path>]`
-- `hrzn test <TEST_ID|testcase.md> [--suite <name> | --all] [--headed] [--retries N] [--dry-run] [--report <path>]`
-- `hrzn heal <TEST_ID|testcase.md> [--suite <name> | --all] [--dry-run] [--report <path>] [--patch <path>] [--approve <path>]`
+- `hrzn test <TEST_ID|testcase.md> [--suite <name> | --all] [--exclude <id>] [--exclude-tag <tag>] [--exclude-suite <name>] [--headed] [--retries N] [--dry-run] [--report <path>]`
+- `hrzn heal <TEST_ID|testcase.md> [--suite <name> | --all] [--exclude <id>] [--exclude-tag <tag>] [--exclude-suite <name>] [--dry-run] [--report <path>] [--patch <path>] [--approve <path>]`
 
 Notes:
 
@@ -72,7 +72,7 @@ Allowed providers:
 Provider behaviour:
 
 - If `llm.baseUrl` is set, hrzn uses it as an OpenAI compatible endpoint.
-- If `llm.provider` is omitted, hrzn auto-detects from env vars (defaults to `gpt`).
+- If `llm.provider` is omitted, hrzn auto-detects from VS Code settings, then env vars. If nothing matches, it defaults to `none`.
 - Set `llm.provider: "none"` to disable LLM calls.
 
 Native adapters:
@@ -127,6 +127,8 @@ If `AGENTS.md` exists at the project root, hrzn reads policy overrides such as:
 - `require_evidence_for_changes: true`
 - `allow_production_code_edits: false`
 - `spec_updates_require_approval_for: [assertions, steps, preconditions]`
+
+If `AGENTS.md` is missing, hrzn prints a suggested policy block to help you create one.
 
 ## Testcase format
 
