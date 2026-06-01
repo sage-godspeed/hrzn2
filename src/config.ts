@@ -74,7 +74,7 @@ function detectProviderFromEnvironment(): {
     };
   }
 
-  return { provider: "gpt", reason: "default" };
+  return { provider: "none", reason: "default" };
 }
 
 function stripJsonComments(raw: string): string {
@@ -102,7 +102,11 @@ function modelFromEnv(provider: LLMProviderId): string {
     case "claude":
       return process.env.CLAUDE_MODEL || process.env.ANTHROPIC_MODEL || "";
     case "gemini":
-      return process.env.GEMINI_MODEL || process.env.GOOGLE_MODEL || "";
+      return (
+        process.env.GEMINI_MODEL ||
+        process.env.GOOGLE_MODEL ||
+        "gemini-2.5-flash"
+      );
     case "deepseek":
       return process.env.DEEPSEEK_MODEL || "";
     case "qwen":
@@ -232,12 +236,7 @@ export async function loadAgentConfig(input: {
     const defaultConfig = {
       agentName: "hrzn",
       defaultRunner: "playwright",
-      llm: {
-        provider: "gpt",
-        model: "",
-        apiKeyEnv: "",
-        baseUrl: "",
-      },
+      llm: {},
       paths: {
         testcasesDir: "testcases",
         e2eDir: "e2e",
@@ -272,8 +271,22 @@ export async function loadAgentConfig(input: {
 
   const llmBlock = (parsed as any).llm ?? {};
   const detected = detectProviderFromEnvironment();
-  const provider = llmBlock.provider
-    ? normalizeProviderId(String(llmBlock.provider))
+
+  const configProviderRaw =
+    typeof llmBlock.provider === "string" ? llmBlock.provider.trim() : "";
+  const configProvider =
+    configProviderRaw && configProviderRaw !== "auto"
+      ? normalizeProviderId(configProviderRaw)
+      : undefined;
+  const configModelRaw =
+    typeof llmBlock.model === "string" ? llmBlock.model.trim() : "";
+  const configModel = configModelRaw || undefined;
+  const configBaseUrlRaw =
+    typeof llmBlock.baseUrl === "string" ? llmBlock.baseUrl.trim() : "";
+  const configBaseUrl = configBaseUrlRaw || undefined;
+
+  const provider = configProvider
+    ? configProvider
     : vscode.provider
       ? normalizeProviderId(String(vscode.provider))
       : detected.provider;
@@ -290,10 +303,10 @@ export async function loadAgentConfig(input: {
     configPath: p,
     llm: {
       provider,
-      model: llmBlock.model ?? vscode.model ?? modelFromEnv(provider) ?? "",
+      model: configModel ?? vscode.model ?? modelFromEnv(provider) ?? "",
       apiKeyEnv: llmBlock.apiKeyEnv ?? "",
-      baseUrl: llmBlock.baseUrl ?? vscode.baseUrl ?? baseUrlFromEnv ?? "",
-      detectedFrom: llmBlock.provider
+      baseUrl: configBaseUrl ?? vscode.baseUrl ?? baseUrlFromEnv ?? "",
+      detectedFrom: configProvider
         ? "config"
         : (vscode.reason ?? detected.reason),
     },
