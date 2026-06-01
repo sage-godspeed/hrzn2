@@ -32,7 +32,10 @@ function parseTags(block: string): Record<string, string> {
   return tags;
 }
 
-function parseRunner(block: string): { preferredRunner: "playwright" | "cypress" | "any"; suite?: string } {
+function parseRunner(block: string): {
+  preferredRunner: "playwright" | "cypress" | "any";
+  suite?: string;
+} {
   let preferredRunner: "playwright" | "cypress" | "any" = "any";
   let suite: string | undefined;
   for (const line of block.split("\n")) {
@@ -40,7 +43,11 @@ function parseRunner(block: string): { preferredRunner: "playwright" | "cypress"
     const [kRaw, ...rest] = t.split(":");
     const k = (kRaw ?? "").trim();
     const v = rest.join(":").trim();
-    if (k === "preferred" && (v === "playwright" || v === "cypress" || v === "any")) preferredRunner = v;
+    if (
+      k === "preferred" &&
+      (v === "playwright" || v === "cypress" || v === "any")
+    )
+      preferredRunner = v;
     if (k === "suite" && v) suite = v;
   }
   return { preferredRunner, suite };
@@ -53,7 +60,10 @@ function parseInlineValue(raw: string): unknown {
   if (v === "false") return false;
   if (v === "null") return null;
   if (/^-?\d+(\.\d+)?$/.test(v)) return Number(v);
-  if ((v.startsWith("{") && v.endsWith("}")) || (v.startsWith("[") && v.endsWith("]"))) {
+  if (
+    (v.startsWith("{") && v.endsWith("}")) ||
+    (v.startsWith("[") && v.endsWith("]"))
+  ) {
     try {
       return JSON.parse(v);
     } catch {
@@ -70,7 +80,10 @@ function parseInlineValue(raw: string): unknown {
       }
     }
   }
-  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+  if (
+    (v.startsWith('"') && v.endsWith('"')) ||
+    (v.startsWith("'") && v.endsWith("'"))
+  ) {
     return v.slice(1, -1);
   }
   return v;
@@ -97,7 +110,10 @@ function parseDashKVMap(block: string): Record<string, unknown> {
     const raw = m[2]!.trim();
     if (!k) continue;
     const val = parseInlineValue(raw);
-    const parts = k.split(".").map((p) => p.trim()).filter(Boolean);
+    const parts = k
+      .split(".")
+      .map((p) => p.trim())
+      .filter(Boolean);
     if (parts.length > 1) setDeep(out, parts, val);
     else out[k] = val;
   }
@@ -130,8 +146,12 @@ function parseDashOps(block: string): Array<Record<string, unknown>> {
 
 function parseLocators(block: string): TestcaseSpec["locators"] | undefined {
   if (!block.trim()) return undefined;
-  const strategyOrderMatch = block.match(/^\s*-\s*strategy_order:\s*(\[.*\])\s*$/m);
-  const strategyOrder = strategyOrderMatch ? (parseInlineValue(strategyOrderMatch[1]!) as any) : undefined;
+  const strategyOrderMatch = block.match(
+    /^\s*-\s*strategy_order:\s*(\[.*\])\s*$/m,
+  );
+  const strategyOrder = strategyOrderMatch
+    ? (parseInlineValue(strategyOrderMatch[1]!) as any)
+    : undefined;
 
   const map: Record<string, Record<string, unknown>> = {};
   const mapStart = block.search(/^\s*-\s*map:\s*$/m);
@@ -142,17 +162,22 @@ function parseLocators(block: string): TestcaseSpec["locators"] | undefined {
       if (!m) continue;
       const key = m[1]!.trim();
       const obj = parseInlineValue(m[2]!.trim());
-      if (obj && typeof obj === "object" && !Array.isArray(obj)) map[key] = obj as Record<string, unknown>;
+      if (obj && typeof obj === "object" && !Array.isArray(obj))
+        map[key] = obj as Record<string, unknown>;
     }
   }
 
   return {
-    strategyOrder: Array.isArray(strategyOrder) ? (strategyOrder as any) : undefined,
-    map: Object.keys(map).length ? map : undefined
+    strategyOrder: Array.isArray(strategyOrder)
+      ? (strategyOrder as any)
+      : undefined,
+    map: Object.keys(map).length ? map : undefined,
   };
 }
 
-function parseHealingPolicy(block: string): TestcaseSpec["healingPolicy"] | undefined {
+function parseHealingPolicy(
+  block: string,
+): TestcaseSpec["healingPolicy"] | undefined {
   if (!block.trim()) return undefined;
   const allow: string[] = [];
   const deny: string[] = [];
@@ -179,7 +204,9 @@ function parseHealingPolicy(block: string): TestcaseSpec["healingPolicy"] | unde
   return {
     allow: allow.length ? allow : undefined,
     deny: deny.length ? deny : undefined,
-    specUpdatesRequireApprovalFor: Array.isArray(req) ? (req as string[]) : undefined
+    specUpdatesRequireApprovalFor: Array.isArray(req)
+      ? (req as string[])
+      : undefined,
   };
 }
 
@@ -210,7 +237,9 @@ export function parseTestcaseMarkdown(md: string): TestcaseSpec {
   const healingPolicyBlock = requiredHeading(md, "Healing Policy");
 
   const locators = locatorsBlock ? parseLocators(locatorsBlock) : undefined;
-  const healingPolicy = healingPolicyBlock ? parseHealingPolicy(healingPolicyBlock) : undefined;
+  const healingPolicy = healingPolicyBlock
+    ? parseHealingPolicy(healingPolicyBlock)
+    : undefined;
 
   return {
     id,
@@ -223,6 +252,6 @@ export function parseTestcaseMarkdown(md: string): TestcaseSpec {
     steps,
     assertions,
     locators,
-    healingPolicy
+    healingPolicy,
   };
 }

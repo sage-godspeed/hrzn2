@@ -1,9 +1,27 @@
 import type { RunnerKind } from "../config.ts";
 
-export type LocatorStrategy = "testid" | "role" | "label" | "text" | "css" | "xpath";
+export type LocatorStrategy =
+  | "testid"
+  | "role"
+  | "label"
+  | "text"
+  | "css"
+  | "xpath";
 
-export type StepOp = "goto" | "fill" | "click" | "press" | "select" | "wait_for" | "assert";
-export type AssertionOp = "url_contains" | "visible" | "not_visible" | "text_contains" | "equals";
+export type StepOp =
+  | "goto"
+  | "fill"
+  | "click"
+  | "press"
+  | "select"
+  | "wait_for"
+  | "assert";
+export type AssertionOp =
+  | "url_contains"
+  | "visible"
+  | "not_visible"
+  | "text_contains"
+  | "equals";
 
 export interface TestcaseSpec {
   id: string;
