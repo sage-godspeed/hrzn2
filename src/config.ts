@@ -156,6 +156,7 @@ async function detectProviderFromVSCodeSettings(projectRoot: string): Promise<{
   model?: string;
   baseUrl?: string;
   reason?: string;
+  path?: string;
 }> {
   const workspaceSettingsPath = resolve(
     projectRoot,
@@ -196,6 +197,7 @@ async function detectProviderFromVSCodeSettings(projectRoot: string): Promise<{
         model: model || undefined,
         baseUrl: hrznBaseUrl || undefined,
         reason: source.reason,
+        path: source.path,
       };
     }
   }
@@ -214,6 +216,23 @@ export interface AgentConfig {
     apiKeyEnv?: string;
     baseUrl?: string;
     detectedFrom?: string;
+    detection?: {
+      config?: { provider?: string; model?: string; baseUrl?: string };
+      vscode?: {
+        provider?: string;
+        model?: string;
+        baseUrl?: string;
+        reason?: string;
+        path?: string;
+      };
+      env?: { provider: LLMProviderId; reason: string };
+      selected?: {
+        provider: LLMProviderId;
+        model?: string;
+        baseUrl?: string;
+        reason?: string;
+      };
+    };
   };
   paths: {
     testcasesDir: string;
@@ -296,6 +315,16 @@ export async function loadAgentConfig(input: {
       ? process.env.LLAMA_BASE_URL || process.env.OLLAMA_HOST || ""
       : "";
 
+  const selectedModel = configModel ?? vscode.model ?? modelFromEnv(provider);
+  const selectedBaseUrl = configBaseUrl ?? vscode.baseUrl ?? baseUrlFromEnv;
+  const detectedFrom = configProvider
+    ? "config"
+    : (vscode.reason ?? detected.reason);
+  const configProviderHint =
+    configProviderRaw && configProviderRaw !== "auto"
+      ? configProviderRaw
+      : undefined;
+
   return {
     agentName: "hrzn",
     defaultRunner,
@@ -303,12 +332,31 @@ export async function loadAgentConfig(input: {
     configPath: p,
     llm: {
       provider,
-      model: configModel ?? vscode.model ?? modelFromEnv(provider) ?? "",
+      model: selectedModel ?? "",
       apiKeyEnv: llmBlock.apiKeyEnv ?? "",
-      baseUrl: configBaseUrl ?? vscode.baseUrl ?? baseUrlFromEnv ?? "",
-      detectedFrom: configProvider
-        ? "config"
-        : (vscode.reason ?? detected.reason),
+      baseUrl: selectedBaseUrl ?? "",
+      detectedFrom,
+      detection: {
+        config: {
+          provider: configProviderHint,
+          model: configModel,
+          baseUrl: configBaseUrl,
+        },
+        vscode: {
+          provider: vscode.provider,
+          model: vscode.model,
+          baseUrl: vscode.baseUrl,
+          reason: vscode.reason,
+          path: vscode.path,
+        },
+        env: { provider: detected.provider, reason: detected.reason },
+        selected: {
+          provider,
+          model: selectedModel ?? "",
+          baseUrl: selectedBaseUrl ?? "",
+          reason: detectedFrom,
+        },
+      },
     },
     paths: {
       testcasesDir: resolve(projectRoot, parsed.paths.testcasesDir),

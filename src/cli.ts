@@ -8,7 +8,7 @@ import {
 } from "node:fs/promises";
 import { basename, resolve, relative } from "node:path";
 import { spawnSync } from "node:child_process";
-import { loadAgentConfig } from "./config.ts";
+import { loadAgentConfig, type AgentConfig } from "./config.ts";
 import { ensureProjectScaffold } from "./scaffold.ts";
 import { parseTestcaseMarkdown } from "./spec/parser.ts";
 import { GraphChangelog } from "./graph/changelog.ts";
@@ -63,6 +63,7 @@ function usage(agentName: string) {
     "  --exclude-tag <tag>    Exclude tag key or key:value (repeatable or comma-separated)",
     "  --exclude-suite <name> Exclude suite name (repeatable or comma-separated)",
     "  --approve <path>      Apply approved spec update JSON",
+    "  --debug               Print LLM detection details",
     "  --runner <name>       Runner for install (playwright|cypress|both)",
     "  --packageManager <n>  Package manager for install (npm|pnpm|yarn)",
     "  --with-browsers       Install Playwright browsers (install command)",
@@ -105,6 +106,57 @@ function emitPolicyHint(input: {
       snippet +
       "\n```\n",
   );
+}
+
+function formatLlmValue(raw?: string): string {
+  const value = String(raw ?? "").trim();
+  return value || "none";
+}
+
+function emitLlmSummary(config: AgentConfig) {
+  if (config.llm.detectedFrom === "config") return;
+  process.stdout.write(
+    `LLM auto-detect: provider=${config.llm.provider} model=${formatLlmValue(
+      config.llm.model,
+    )} baseUrl=${formatLlmValue(config.llm.baseUrl)} source=${formatLlmValue(
+      config.llm.detectedFrom,
+    )}\n`,
+  );
+}
+
+function emitLlmDebug(config: AgentConfig) {
+  const detection = config.llm.detection;
+  if (!detection) return;
+  const configLabel = detection.config
+    ? `provider=${formatLlmValue(detection.config.provider)} model=${formatLlmValue(
+        detection.config.model,
+      )} baseUrl=${formatLlmValue(detection.config.baseUrl)}`
+    : "none";
+  const vscodeLabel = detection.vscode
+    ? `provider=${formatLlmValue(detection.vscode.provider)} model=${formatLlmValue(
+        detection.vscode.model,
+      )} baseUrl=${formatLlmValue(detection.vscode.baseUrl)} source=${formatLlmValue(
+        detection.vscode.reason,
+      )}${detection.vscode.path ? ` path=${detection.vscode.path}` : ""}`
+    : "none";
+  const envLabel = detection.env
+    ? `provider=${formatLlmValue(detection.env.provider)} reason=${formatLlmValue(
+        detection.env.reason,
+      )}`
+    : "none";
+  const selectedLabel = detection.selected
+    ? `provider=${formatLlmValue(detection.selected.provider)} model=${formatLlmValue(
+        detection.selected.model,
+      )} baseUrl=${formatLlmValue(detection.selected.baseUrl)} source=${formatLlmValue(
+        detection.selected.reason,
+      )}`
+    : "none";
+
+  process.stdout.write("LLM detection debug:\n");
+  process.stdout.write(`  config: ${configLabel}\n`);
+  process.stdout.write(`  vscode: ${vscodeLabel}\n`);
+  process.stdout.write(`  env: ${envLabel}\n`);
+  process.stdout.write(`  selected: ${selectedLabel}\n`);
 }
 
 function parseFlags(argv: string[]) {
@@ -182,6 +234,10 @@ function parseFlags(argv: string[]) {
     }
     if (a === "--approve") {
       flags.approve = argv[++i] ?? "";
+      continue;
+    }
+    if (a === "--debug") {
+      flags.debug = "true";
       continue;
     }
     if (a === "--runner") {
@@ -463,6 +519,7 @@ export async function main() {
     ? resolve(flags.config)
     : resolve(projectRoot, "agent.config.json");
   const dryRun = flags.dryRun === "true";
+  const debug = flags.debug === "true";
 
   const config = await loadAgentConfig({ projectRoot, configPath });
   const agentName = config.agentName;
@@ -615,6 +672,8 @@ export async function main() {
     process.stdout.write(
       `LLM detectedFrom: ${config.llm.detectedFrom ?? "config"}\n`,
     );
+    emitLlmSummary(config);
+    if (debug) emitLlmDebug(config);
     process.stdout.write(
       `Policy: ${basePolicy.policy.source} (allow: ${basePolicy.policy.allow.join(", ")})\n`,
     );
@@ -839,6 +898,8 @@ export async function main() {
   process.stdout.write(
     `LLM detectedFrom: ${config.llm.detectedFrom ?? "config"}\n`,
   );
+  emitLlmSummary(config);
+  if (debug) emitLlmDebug(config);
   process.stdout.write(
     `Policy: ${resolved.policy.source} (allow: ${resolved.policy.allow.join(", ")})\n`,
   );
