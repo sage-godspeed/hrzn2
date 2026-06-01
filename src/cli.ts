@@ -1,4 +1,11 @@
-import { readFile, writeFile, access, readdir } from "node:fs/promises";
+import {
+  readFile,
+  writeFile,
+  access,
+  readdir,
+  stat,
+  rm,
+} from "node:fs/promises";
 import { basename, resolve, relative } from "node:path";
 import { spawnSync } from "node:child_process";
 import { loadAgentConfig } from "./config.ts";
@@ -52,6 +59,9 @@ function usage(agentName: string) {
     "  --auto               Auto-increment template file name",
     "  --suite <name>         Run or heal a suite",
     "  --all                 Run or heal all testcases",
+    "  --exclude <id>         Exclude testcase ID (repeatable or comma-separated)",
+    "  --exclude-tag <tag>    Exclude tag key or key:value (repeatable or comma-separated)",
+    "  --exclude-suite <name> Exclude suite name (repeatable or comma-separated)",
     "  --approve <path>      Apply approved spec update JSON",
     "  --runner <name>       Runner for install (playwright|cypress|both)",
     "  --packageManager <n>  Package manager for install (npm|pnpm|yarn)",
@@ -60,9 +70,50 @@ function usage(agentName: string) {
   ].join("\n");
 }
 
+function emitPolicyHint(input: {
+  agentsMdPath?: string;
+  agentsMdContent?: string;
+}) {
+  const snippet = [
+    "# Healing policy (hrzn)",
+    "allow:",
+    "  - selector_update",
+    "  - timing_waits",
+    "  - flow_popups",
+    "deny:",
+    "  - assertion_update",
+    "max_heal_iterations: 3",
+    "require_evidence_for_changes: true",
+    "allow_production_code_edits: false",
+    'spec_updates_require_approval_for: ["assertions", "steps", "preconditions"]',
+  ].join("\n");
+
+  if (!input.agentsMdPath) {
+    process.stdout.write(
+      "No AGENTS.md found. Create one to customize healing policy. Suggested contents:\n" +
+        "```\n" +
+        snippet +
+        "\n```\n",
+    );
+    return;
+  }
+
+  if (!input.agentsMdContent) return;
+  process.stdout.write(
+    `AGENTS.md detected at ${input.agentsMdPath}. Add or edit this policy block if needed:\n` +
+      "```\n" +
+      snippet +
+      "\n```\n",
+  );
+}
+
 function parseFlags(argv: string[]) {
   const flags: Record<string, string> = {};
   const positional: string[] = [];
+  const appendFlag = (key: string, value: string) => {
+    if (!value) return;
+    flags[key] = flags[key] ? `${flags[key]},${value}` : value;
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
     if (a === "--projectRoot") {
@@ -117,6 +168,18 @@ function parseFlags(argv: string[]) {
       flags.all = "true";
       continue;
     }
+    if (a === "--exclude") {
+      appendFlag("exclude", argv[++i] ?? "");
+      continue;
+    }
+    if (a === "--exclude-tag") {
+      appendFlag("excludeTag", argv[++i] ?? "");
+      continue;
+    }
+    if (a === "--exclude-suite") {
+      appendFlag("excludeSuite", argv[++i] ?? "");
+      continue;
+    }
     if (a === "--approve") {
       flags.approve = argv[++i] ?? "";
       continue;
@@ -140,6 +203,24 @@ function parseFlags(argv: string[]) {
     positional.push(a);
   }
   return { flags, positional };
+}
+
+function splitFlagList(raw: string | undefined): string[] {
+  return (raw ?? "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
+function parseTagSpec(raw: string): { key: string; value?: string } | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const idx = trimmed.indexOf(":");
+  if (idx === -1) return { key: trimmed };
+  const key = trimmed.slice(0, idx).trim();
+  const value = trimmed.slice(idx + 1).trim();
+  if (!key) return null;
+  return { key, value: value || undefined };
 }
 
 function runGit(
@@ -174,6 +255,28 @@ async function writePatchFile(path: string, cwd: string) {
   const contents = diff.code === 0 ? diff.stdout : "";
   await writeFile(path, contents, "utf8");
   return path;
+}
+
+async function pruneArtifacts(artifactsDir: string, keep: number) {
+  const entries = await readdir(artifactsDir, { withFileTypes: true });
+  const runDirs = entries.filter(
+    (entry) => entry.isDirectory() && /^(pw|cy)-/.test(entry.name),
+  );
+  if (runDirs.length <= keep) return;
+
+  const infos = await Promise.all(
+    runDirs.map(async (entry) => {
+      const path = resolve(artifactsDir, entry.name);
+      const stats = await stat(path);
+      return { path, mtimeMs: stats.mtimeMs };
+    }),
+  );
+
+  infos.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  const stale = infos.slice(keep);
+  for (const entry of stale) {
+    await rm(entry.path, { recursive: true, force: true });
+  }
 }
 
 function emitCiReport(report: Record<string, unknown>) {
@@ -427,6 +530,9 @@ export async function main() {
   async function writeLastRunReport(report: Record<string, unknown>) {
     const path = resolve(config.paths.artifactsDir, "last-run.json");
     await writeRunReport(path, report as any);
+    if (!dryRun) {
+      await pruneArtifacts(config.paths.artifactsDir, 3);
+    }
   }
 
   async function loadLastRunReport() {
@@ -669,7 +775,31 @@ export async function main() {
     ? specEntries.filter((e) => e.spec.suite === suite)
     : specEntries;
 
-  if (!filtered.length) {
+  const excludedIds = new Set(splitFlagList(flags.exclude));
+  const excludedSuites = new Set(splitFlagList(flags.excludeSuite));
+  const excludedTags = splitFlagList(flags.excludeTag)
+    .map(parseTagSpec)
+    .filter(Boolean) as Array<{ key: string; value?: string }>;
+
+  const excludedFiltered = filtered.filter((entry) => {
+    if (excludedIds.has(entry.spec.id)) return false;
+    if (entry.spec.suite && excludedSuites.has(entry.spec.suite)) return false;
+    if (excludedTags.length) {
+      for (const tag of excludedTags) {
+        const tagValue = entry.spec.tags?.[tag.key];
+        if (tag.value == null) {
+          if (tagValue != null) return false;
+        } else if (String(tagValue) === tag.value) {
+          return false;
+        }
+      }
+    }
+    return true;
+  });
+
+  const modeFiltered = excludedFiltered;
+
+  if (!modeFiltered.length) {
     process.stderr.write(`No testcases match suite '${suite}'.\n`);
     process.exit(2);
   }
@@ -679,7 +809,7 @@ export async function main() {
     : await GraphChangelog.openOrCreate(config.paths.graphChangelogPath);
 
   if (graph) {
-    for (const entry of filtered) {
+    for (const entry of modeFiltered) {
       const localResolved = await resolvePolicy({
         projectRoot: config.projectRoot,
         spec: entry.spec,
@@ -697,7 +827,7 @@ export async function main() {
     }
   }
 
-  const primary = filtered[0]!;
+  const primary = modeFiltered[0]!;
   const resolved = await resolvePolicy({
     projectRoot: config.projectRoot,
     spec: primary.spec,
@@ -712,10 +842,11 @@ export async function main() {
   process.stdout.write(
     `Policy: ${resolved.policy.source} (allow: ${resolved.policy.allow.join(", ")})\n`,
   );
+  emitPolicyHint(resolved.workspaceRules);
 
   if (cmd === "run") {
     if (suite || isAll) {
-      process.stdout.write(`Parsed ${filtered.length} testcases.\n`);
+      process.stdout.write(`Parsed ${modeFiltered.length} testcases.\n`);
     }
     process.stdout.write(
       `Use 'synth', 'test', or 'heal' to generate tests, run E2E, or self-heal.\n`,
@@ -815,10 +946,10 @@ export async function main() {
       return;
     }
 
-    if (filtered.length > 1) {
+    if (modeFiltered.length > 1) {
       const results: Array<Record<string, unknown>> = [];
       let approvalPending = false;
-      for (const entry of filtered) {
+      for (const entry of modeFiltered) {
         const localResolved = await resolvePolicy({
           projectRoot: config.projectRoot,
           spec: entry.spec,
@@ -1036,7 +1167,7 @@ export async function main() {
   const retries = flags.retries ? Number(flags.retries) : undefined;
   const headed = flags.headed === "true";
   if (dryRun) {
-    if (filtered.length > 1) {
+    if (modeFiltered.length > 1) {
       const report = {
         timestamp: new Date().toISOString(),
         command: "test",
@@ -1047,8 +1178,8 @@ export async function main() {
         ci: flags.ci === "true",
         dryRun,
         git: collectGitMeta(projectRoot),
-        testcases: filtered.map((e) => e.spec.id),
-        results: filtered.map((e) => ({
+        testcases: modeFiltered.map((e) => e.spec.id),
+        results: modeFiltered.map((e) => ({
           testcaseId: e.spec.id,
           status: "pass",
           runner: config.defaultRunner,
@@ -1086,9 +1217,9 @@ export async function main() {
     return;
   }
 
-  if (filtered.length > 1) {
+  if (modeFiltered.length > 1) {
     const results: Array<Record<string, unknown>> = [];
-    for (const entry of filtered) {
+    for (const entry of modeFiltered) {
       const evidence = await runE2E(config, {
         testId: entry.spec.id,
         headed,
