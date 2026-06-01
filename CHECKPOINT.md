@@ -4,14 +4,14 @@ Use this file to keep shared context for work in this repo. Keep entries short a
 
 ## Current focus
 
-- Maintain shared context for ongoing hrzn CLI work.
+- Maintain shared context for ongoing hrzn2 CLI work.
 - Keep README structured and accurate.
 
 ## Recent changes
 
 - Added native DeepSeek and Ollama (llama) providers.
 - Added auto-creation of agent.config.json when missing.
-- Exposed hrzn2 CLI name alongside hrzn.
+- Exposed hrzn2 CLI name alongside hrzn (bin alias remains).
 - Documented config auto-creation, CLI names, and native adapter notes.
 - Allowed template without TEST_ID and added default template fallback.
 - Template now resets to the built-in example if required sections are missing.
@@ -43,5 +43,5 @@ Use this file to keep shared context for work in this repo. Keep entries short a
 ## Notes
 
 - LLM provider can be disabled with llm.provider: "none".
-- hrzn install supports Playwright and Cypress runners.
+- hrzn2 install supports Playwright and Cypress runners.
 - hrzn2 now auto-creates agent.config.json if missing.

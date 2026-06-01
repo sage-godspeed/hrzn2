@@ -1,6 +1,6 @@
-# hrzn
+# hrzn2
 
-hrzn is a TypeScript CLI for E2E tests. You write testcase markdown, hrzn generates tests, runs them, heals failures within policy, and records changes in a graph changelog.
+hrzn2 is a TypeScript CLI for E2E tests. You write testcase markdown, hrzn2 generates tests, runs them, heals failures within policy, and records changes in a graph changelog.
 
 ## What it does
 
@@ -31,34 +31,34 @@ If the config is elsewhere:
 
 - `node bin/hrzn2.js run AUTH-LOGIN-001 --projectRoot /path/to/project --config /path/to/project/agent.config.json`
 
-When the config file does not exist, hrzn will create a default `agent.config.json` at the target root during `init`.
+When the config file does not exist, hrzn2 will create a default `agent.config.json` at the target root during `init`.
 `init` creates `testcases/TEMPLATE.md` and no example testcase file.
-If `testcases/TEMPLATE.md` is missing or missing required sections, `hrzn template` uses the built-in example and writes `TEMPLATE.md`.
+If `testcases/TEMPLATE.md` is missing or missing required sections, `hrzn2 template` uses the built-in example and writes `TEMPLATE.md`.
 When `--auto` is used, the test ID and Title are aligned to the final numbered filename (three-digit suffixes, starting at 001).
 When the provided ID already ends with a three-digit suffix, `--auto` avoids double-appending it.
 Generated testcase filenames are lowercased by default.
 
 ## Install runner dependencies
 
-- `hrzn install --runner playwright --with-browsers`
-- `hrzn install --runner playwright --browsers chromium,firefox`
-- `hrzn install --runner cypress`
+- `hrzn2 install --runner playwright --with-browsers`
+- `hrzn2 install --runner playwright --browsers chromium,firefox`
+- `hrzn2 install --runner cypress`
 
 ## CLI reference
 
-- `hrzn init [--projectRoot <dir>] [--config <path>]`
-- `hrzn run <testcase.md|TEST_ID> [--projectRoot <dir>] [--config <path>] [--all] [--suite <name>] [--exclude <id>] [--exclude-tag <tag>] [--exclude-suite <name>]`
-- `hrzn rerun`
-- `hrzn install [--runner <playwright|cypress|both>] [--packageManager <npm|pnpm|yarn>] [--with-browsers] [--browsers <list>]`
-- `hrzn template [TEST_ID] [--out <path>] [--overwrite] [--auto]`
-- `hrzn synth <TEST_ID|testcase.md> [--overwrite] [--dry-run] [--report <path>] [--patch <path>]`
-- `hrzn test <TEST_ID|testcase.md> [--suite <name> | --all] [--exclude <id>] [--exclude-tag <tag>] [--exclude-suite <name>] [--headed] [--retries N] [--dry-run] [--report <path>]`
-- `hrzn heal <TEST_ID|testcase.md> [--suite <name> | --all] [--exclude <id>] [--exclude-tag <tag>] [--exclude-suite <name>] [--dry-run] [--report <path>] [--patch <path>] [--approve <path>]`
+- `hrzn2 init [--projectRoot <dir>] [--config <path>]`
+- `hrzn2 run <testcase.md|TEST_ID> [--projectRoot <dir>] [--config <path>] [--all] [--suite <name>] [--exclude <id>] [--exclude-tag <tag>] [--exclude-suite <name>]`
+- `hrzn2 rerun`
+- `hrzn2 install [--runner <playwright|cypress|both>] [--packageManager <npm|pnpm|yarn>] [--with-browsers] [--browsers <list>]`
+- `hrzn2 template [TEST_ID] [--out <path>] [--overwrite] [--auto]`
+- `hrzn2 synth <TEST_ID|testcase.md> [--overwrite] [--dry-run] [--report <path>] [--patch <path>]`
+- `hrzn2 test <TEST_ID|testcase.md> [--suite <name> | --all] [--exclude <id>] [--exclude-tag <tag>] [--exclude-suite <name>] [--headed] [--retries N] [--dry-run] [--report <path>]`
+- `hrzn2 heal <TEST_ID|testcase.md> [--suite <name> | --all] [--exclude <id>] [--exclude-tag <tag>] [--exclude-suite <name>] [--dry-run] [--report <path>] [--patch <path>] [--approve <path>]`
 
 Notes:
 
 - `--ci` prints a JSON report and uses non-zero exit codes on failures.
-- Healing can propose testcase updates. If policy requires approval, hrzn writes a JSON file and exits in CI. Apply with `--approve <path>`.
+- Healing can propose testcase updates. If policy requires approval, hrzn2 writes a JSON file and exits in CI. Apply with `--approve <path>`.
 - `rerun` replays the last test/heal/synth run using `e2e/artifacts/last-run.json`.
 
 ## Configure AI provider
@@ -71,8 +71,8 @@ Allowed providers:
 
 Provider behaviour:
 
-- If `llm.baseUrl` is set, hrzn uses it as an OpenAI compatible endpoint.
-- If `llm.provider` is omitted, hrzn auto-detects from VS Code settings, then env vars. If nothing matches, it defaults to `none`.
+- If `llm.baseUrl` is set, hrzn2 uses it as an OpenAI compatible endpoint.
+- If `llm.provider` is omitted, hrzn2 auto-detects from VS Code settings, then env vars. If nothing matches, it defaults to `none`.
 - Set `llm.provider: "none"` to disable LLM calls.
 
 Native adapters:
@@ -115,11 +115,11 @@ Provider model envs:
 
 ### IDE detection
 
-If VS Code settings are available, hrzn adopts the configured model and provider when `llm.provider` is not set. It falls back to env vars if no settings are found.
+If VS Code settings are available, hrzn2 adopts the configured model and provider when `llm.provider` is not set. It falls back to env vars if no settings are found.
 
 ### Workspace policy overrides
 
-If `AGENTS.md` exists at the project root, hrzn reads policy overrides such as:
+If `AGENTS.md` exists at the project root, hrzn2 reads policy overrides such as:
 
 - `allow: [selector_update, timing_waits]`
 - `deny: [assertion_update]`
@@ -128,7 +128,7 @@ If `AGENTS.md` exists at the project root, hrzn reads policy overrides such as:
 - `allow_production_code_edits: false`
 - `spec_updates_require_approval_for: [assertions, steps, preconditions]`
 
-If `AGENTS.md` is missing, hrzn prints a suggested policy block to help you create one.
+If `AGENTS.md` is missing, hrzn2 prints a suggested policy block to help you create one.
 
 ## Testcase format
 
@@ -161,12 +161,12 @@ Notes:
 From this folder:
 
 - `npm i -g .`
-- Then run `hrzn ...` or `hrzn2 ...`
+- Then run `hrzn2 ...`
 
 Alternative:
 
 - `npm link` (in this folder)
-- `npm link hrzn` (in the target project)
+- `npm link hrzn2` (in the target project)
 
 If `npm link` fails with permissions on macOS, rerun with `sudo npm link`.
 
