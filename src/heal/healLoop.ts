@@ -27,7 +27,29 @@ function patchPlanSchema(): Record<string, unknown> {
       classification: { type: "string" },
       confidence: { type: "number" },
       runner: { type: "string" },
-      changes: { type: "array" },
+      changes: {
+        type: "array",
+        items: {
+          type: "object",
+          required: ["type", "reason"],
+          properties: {
+            type: {
+              type: "string",
+              enum: [
+                "selector_update",
+                "timing_waits",
+                "flow_popups",
+                "test_data_update",
+                "assertion_update",
+              ],
+            },
+            target: { type: "string" },
+            from: { type: "object" },
+            to: { type: "object" },
+            reason: { type: "string" },
+          },
+        },
+      },
       rerun: { type: "object" },
       specUpdate: { type: "object" },
     },
@@ -120,9 +142,14 @@ export async function healLoop(input: {
     iterations < input.policy.maxHealIterations
   ) {
     iterations++;
-    const healed = await healOnce({ ...input, evidence, dryRun: input.dryRun });
-    if (healed.applied <= 0) break;
-    plans.push(healed.plan);
+    try {
+      const healed = await healOnce({ ...input, evidence, dryRun: input.dryRun });
+      if (healed.applied <= 0) break;
+      plans.push(healed.plan);
+    } catch (err: any) {
+      process.stderr.write(`Heal iteration failed: ${String(err?.message ?? err)}\n`);
+      break;
+    }
     evidence = await runE2E(input.config, {
       testId: input.spec.id,
       retries: 0,
